@@ -1,0 +1,34 @@
+plugins {
+    kotlin("jvm") version "1.9.20"
+    kotlin("plugin.serialization") version "1.9.20"
+    id("io.gitlab.arturbosch.detekt") version "1.23.3"
+}
+
+group = "eu.pieland"
+version = "1.0-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.3")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+
+    testImplementation(kotlin("test"))
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("net.jqwik:jqwik-kotlin:1.8.1")
+}
+
+tasks.test {
+    useJUnitPlatform {
+        includeEngines("junit-jupiter", "jqwik")
+    }
+}
+
+kotlin {
+    explicitApi()
+    jvmToolchain(8)
+}
