@@ -15,4 +15,4 @@ jobs:
       with:
         dependency-graph: generate-and-submit
     - name: Run a build and generate the dependency graph which will be submitted post-job
-      run: ./gradlew build
+      run: ./gradlew build -x test
