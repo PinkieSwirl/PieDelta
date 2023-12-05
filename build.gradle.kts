@@ -19,7 +19,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(platform("org.junit:junit-bom:5.10.1"))
     testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("net.jqwik:jqwik-kotlin:1.8.1")
+    testImplementation("net.jqwik:jqwik-kotlin:1.8.2")
 }
 
 tasks.test {
