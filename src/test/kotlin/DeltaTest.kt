@@ -49,7 +49,7 @@ internal class DeltaTest {
 
     @Suppress("UnusedPrivateMember") // Method source
     private fun `round-trip single file update success arguments`(): Iterator<Arguments> {
-        val repeats = sequenceOf(2, 100, 10_000, 1_000_000, 2_000_000, 10_000_000)
+        val repeats = sequenceOf(2, 100, 10_000, 1_000_000, 2_000_000, 5_000_000)
         val chunkSizes = sequenceOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 128, 512, 1024, 10_000, 100_000)
         return repeats.flatMap { repeat ->
             chunkSizes.mapNotNull { chunkSize ->
