@@ -2,6 +2,7 @@ package eu.pieland.delta
 
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertIterableEquals
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -47,8 +48,7 @@ internal class DeltaTest {
         assertEquals(expected, source.toComparableMap())
     }
 
-    @Suppress("UnusedPrivateMember") // Method source
-    private fun `round-trip single file update success arguments`(): Iterator<Arguments> {
+    private fun `slow round-trip single file update success arguments`(): Iterator<Arguments> {
         val repeats = sequenceOf(2, 100, 10_000, 1_000_000, 2_000_000, 10_000_000)
         val chunkSizes = sequenceOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 128, 512, 1024, 10_000, 100_000)
         return repeats.flatMap { repeat ->
@@ -62,9 +62,34 @@ internal class DeltaTest {
         }.iterator()
     }
 
+    private fun `fast round-trip single file update success arguments`(): Iterator<Arguments> {
+        val repeats = sequenceOf(2, 100, 10_000, 500_000)
+        val chunkSizes = sequenceOf(1, 10, 16, 32, 512, 10_000)
+        return repeats.flatMap { repeat ->
+            chunkSizes.mapNotNull { chunkSize ->
+                when {
+                    repeat > 10_000 && chunkSize < 32 -> null
+                    repeat > 1_000_000 && chunkSize < 512 -> null
+                    else -> arguments(repeat, chunkSize)
+                }
+            }
+        }.iterator()
+    }
+
     @ParameterizedTest
-    @MethodSource("round-trip single file update success arguments")
-    fun `round-trip single file update success`(repeated: Int, chunkSize: Int) {
+    @MethodSource("slow round-trip single file update success arguments")
+    @Tag("slow")
+    fun `slow round-trip single file update success`(repeated: Int, chunkSize: Int) {
+        `round-trip single file update success`(repeated, chunkSize)
+    }
+
+    @ParameterizedTest
+    @MethodSource("fast round-trip single file update success arguments")
+    fun `fast round-trip single file update success`(repeated: Int, chunkSize: Int) {
+        `round-trip single file update success`(repeated, chunkSize)
+    }
+
+    private fun `round-trip single file update success`(repeated: Int, chunkSize: Int) {
         // setup
         val source = tmpdir.resolve("source").apply {
             createDirectories()
