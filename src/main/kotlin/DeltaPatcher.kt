@@ -122,13 +122,12 @@ private class GDiffPatcher private constructor(
     private val source: SeekableByteChannel,
     private val patchedOut: DataOutputStream,
     private val deltaIn: DataInputStream,
-    val bufferSize: Int
+    val bufferSize: Int = 1024
 ) {
     constructor(source: SeekableByteChannel, patchedOut: OutputStream, deltaIn: InputStream) : this(
         source,
         DataOutputStream(patchedOut),
         DataInputStream(deltaIn),
-        bufferSize = 1024,
     )
 
     private val buffer: ByteBuffer = ByteBuffer.allocate(bufferSize)
