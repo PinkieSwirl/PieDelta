@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.4")
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.5")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
 
