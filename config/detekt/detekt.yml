@@ -736,7 +736,7 @@ style:
   UnusedPrivateClass:
     active: true
   UnusedPrivateMember:
-    active: true
+    active: false
     allowedNames: ''
   UnusedPrivateProperty:
     active: true
