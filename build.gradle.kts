@@ -41,7 +41,6 @@ dependencies {
 tasks.test {
     minHeapSize = "2g"
     maxHeapSize = "4g"
-    jvmArgs = listOf("-XX:MaxPermSize=1g")
     useJUnitPlatform {
         includeEngines("junit-jupiter", "jqwik")
         excludeTags("slow")
