@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
-    // id("com.autonomousapps.dependency-analysis")
+    id("com.autonomousapps.dependency-analysis")
 }
 
 // main
