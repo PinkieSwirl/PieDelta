@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
     id("com.autonomousapps.dependency-analysis")
+    jacoco
 }
 
 // main
@@ -12,6 +13,7 @@ val kotlinSerializationVersion: String by project
 val junitVersion: String by project
 val jqwikVersion: String by project
 // quality
+val jacocoVersion: String by project
 val detektVersion: String by project
 
 group = "eu.pieland"
@@ -45,6 +47,19 @@ tasks.test {
         includeEngines("junit-jupiter", "jqwik")
         excludeTags("slow")
     }
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test) // tests are required to run before generating the report
+
+    reports {
+        xml.required = true
+        html.required = false
+    }
+}
+
+jacoco {
+    toolVersion = jacocoVersion
 }
 
 kotlin {
