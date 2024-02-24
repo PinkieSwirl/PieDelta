@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-internal class DeltaRealWorldTest {
+internal class DeltaHappyFlowRealWorldTest {
 
     @TempDir
     private lateinit var tmpdir: Path

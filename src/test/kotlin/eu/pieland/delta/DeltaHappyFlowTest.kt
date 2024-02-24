@@ -17,7 +17,7 @@ import kotlin.io.path.*
 import kotlin.test.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-internal class DeltaTest {
+internal class DeltaHappyFlowTest {
 
     @TempDir
     private lateinit var tmpdir: Path

@@ -27,32 +27,22 @@ internal const val COPY_LONG_INT = 255
 internal inline fun <reified F : T, reified S : T, T> Iterable<T>.partitionByType(): Pair<List<F>, List<S>> {
     val first = ArrayList<F>()
     val second = ArrayList<S>()
-    forEach { element ->
-        if (element is F) {
-            first.add(element)
-        } else {
-            second.add(element as S)
-        }
-    }
+    forEach { element -> if (element is F) first.add(element) else second.add(element as S) }
     return Pair(first, second)
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 internal fun Path.computeSha1(): String {
     val md = MessageDigest.getInstance("SHA-1")
     val output = DigestInputStream(inputStream().buffered(), md)
     output.use { it.copyTo(NopOutputStream) }
-    return output.messageDigest.digest().hex()
+    return output.messageDigest.digest().toHexString()
 }
 
-private object NopOutputStream : OutputStream() {
+internal object NopOutputStream : OutputStream() {
     override fun write(b: Int) = Unit
     override fun write(b: ByteArray) = Unit
     override fun write(b: ByteArray, off: Int, len: Int) = Unit
-}
-
-@OptIn(ExperimentalUnsignedTypes::class)
-internal fun ByteArray.hex(): String {
-    return asUByteArray().joinToString("") { it.toString(radix = 16).padStart(2, '0') }
 }
 
 internal fun Path.inFileChannel(): SeekableByteChannel = FileChannel.open(this, StandardOpenOption.READ)

@@ -18,7 +18,7 @@ import kotlin.io.path.writeBytes
 import kotlin.test.assertEquals
 
 @AddLifecycleHook(value = TemporaryFileHook::class, propagateTo = PropagationMode.ALL_DESCENDANTS)
-internal object DeltaPropertyTest {
+internal object DeltaHappyFlowPropertyTest {
 
     @Provide
     fun filenameMap(): Arbitrary<Map<Path, ByteArray>> {

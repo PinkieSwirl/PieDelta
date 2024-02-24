@@ -48,8 +48,7 @@ internal sealed class IndexEntry(
 
         if (path != other.path) return false
         if (oldHash != other.oldHash) return false
-        if (newHash != other.newHash) return false
-        return state == other.state
+        return newHash == other.newHash
     }
 
     override fun hashCode(): Int {
