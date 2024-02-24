@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-internal class DeltaFixedPropertiesTest {
+internal class DeltaHappyFlowFixedPropertiesTest {
 
     @TempDir
     private lateinit var tmpdir: Path

@@ -22,7 +22,8 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
     private val unchanged: List<Unchanged>
 
     init {
-        val entry = zipPatch.nextEntry!!
+        val entry = requireNotNull(zipPatch.nextEntry) { "'zipPatch' must be a valid zip" }
+        require(target.exists() && target.isDirectory()) { "'target' must be an existing directory" }
         require(entry.name.startsWith(".index")) {
             "Unexpected index file name: '${entry.name}', must start with '.index'"
         }
@@ -51,9 +52,13 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
     private fun List<Unchanged>.check() {
         forEach { unchangedEntry ->
             val path = target.resolve(unchangedEntry.path)
-            check(path.exists() && path.isRegularFile()) { "UNCHANGED file does not exists as regular file: $path" }
+            check(path.exists() && path.isRegularFile()) {
+                "UNCHANGED file does not exists as regular file: ${path.relativeTo(target)}"
+            }
             val hash = path.computeSha1()
-            check(hash == unchangedEntry.oldHash) { "UNCHANGED file check failed for file: $path" }
+            check(hash == unchangedEntry.oldHash) {
+                "UNCHANGED file-check failed for file: ${path.relativeTo(target)}"
+            }
         }
     }
 
@@ -62,11 +67,11 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
             val entry = checkNotNull(zipPatch.nextEntry)
             check(createdEntry.path.invariantSeparatorsPathString == entry.name)
             { "Index and zip-stream un-synchronized, index: ${createdEntry.path}, zip-stream: ${entry.name}" }
-            val file = target.resolve(createdEntry.path)
-            check(file.notExists()) { "CREATED file already exists: $file" }
-            file.parent.createDirectories()
-            val hash = file.computeSha1FromZipEntry()
-            check(hash == createdEntry.newHash) { "CREATED file check failed for file: $file" }
+            val path = target.resolve(createdEntry.path)
+            check(path.notExists()) { "CREATED file already exists: ${path.relativeTo(target)}" }
+            path.parent.createDirectories()
+            val hash = path.computeSha1FromZipEntry()
+            check(hash == createdEntry.newHash) { "CREATED file-check failed for file: ${path.relativeTo(target)}" }
             zipPatch.closeEntry()
         }
     }
@@ -77,21 +82,25 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
             check(updatedEntry.path.invariantSeparatorsPathString + ".gdiff" == zipEntry.name) {
                 "Index and zip-stream un-synchronized, index: ${updatedEntry.path}, zip-stream: ${zipEntry.name}"
             }
-            val file = target.resolve(updatedEntry.path)
-            check(file.exists()) { "UPDATED file doesn't exist: $file" }
-            check(file.computeSha1() == updatedEntry.oldHash) { "UPDATED file check failed for old file: $file" }
+            val path = target.resolve(updatedEntry.path)
+            check(path.exists() && path.isRegularFile()) { "UPDATED file doesn't exist: ${path.relativeTo(target)}" }
+            check(path.computeSha1() == updatedEntry.oldHash) {
+                "UPDATED file-check failed for old file: ${path.relativeTo(target)}"
+            }
             val patched = target.resolve(updatedEntry.path.invariantSeparatorsPathString + UUID.randomUUID().toString())
-            patch(file, patched)
+            patch(path, patched)
             check(patched.computeSha1() == updatedEntry.newHash) { "UPDATED file check failed for new file: $patched" }
-            patched.moveTo(file, StandardCopyOption.REPLACE_EXISTING)
+            patched.moveTo(path, StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
     private fun List<Deleted>.delete() {
         forEach { deletedEntry ->
             val path = target.resolve(deletedEntry.path)
-            check(path.exists()) { "DELETED file doesn't exist: $path" }
-            check(path.computeSha1() == deletedEntry.oldHash) { "DELETED file check failed for old file: $path" }
+            check(path.exists() && path.isRegularFile()) { "DELETED file doesn't exist: ${path.relativeTo(target)}" }
+            check(path.computeSha1() == deletedEntry.oldHash) {
+                "DELETED file-check failed for old file: ${path.relativeTo(target)}"
+            }
             path.deleteExisting()
             var parent = path.parent
             while (parent != target && !Files.list(parent).findFirst().isPresent) {
@@ -101,11 +110,12 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun Path.computeSha1FromZipEntry(): String {
         val md = MessageDigest.getInstance("SHA-1")
         val output = DigestOutputStream(outputStream().buffered(), md)
         output.use { zipPatch.copyTo(it) }
-        return output.messageDigest.digest().hex()
+        return output.messageDigest.digest().toHexString()
     }
 
     private fun patch(file: Path, patched: Path) {

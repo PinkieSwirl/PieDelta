@@ -45,9 +45,7 @@ public class DeltaCreator(
         val targetSet: Set<Path> = target.relativePaths()
         val intersect = sourceSet.intersect(targetSet)
         val (updated, unchanged) = intersect.map {
-            UnchangedOrUpdated(
-                it, source.resolve(it).computeSha1(), target.resolve(it).computeSha1()
-            )
+            UnchangedOrUpdated(it, source.resolve(it).computeSha1(), target.resolve(it).computeSha1())
         }.partitionByType<Updated, Unchanged, UnchangedOrUpdated>()
 
         created = targetSet.subtract(intersect).map { Created(it, newHash = target.resolve(it).computeSha1()) }
