@@ -12,6 +12,7 @@ import net.jqwik.kotlin.api.orNull
 import org.junit.jupiter.api.assertAll
 import kotlin.io.path.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
@@ -58,25 +59,25 @@ internal class IndexEntryPropertyTest {
     fun `two different IndexEntry Instances are not equal`(
         @ForAll("indexEntries") entries: Tuple2<IndexEntry, IndexEntry>
     ) {
-        assertNotEquals(entries.get1(), entries.get2())
+        assertEntriesNotEquals(entries.get1(), entries.get2())
     }
 
     @Property
     fun `IndexEntry and Any are not equal`(
         @ForAll("indexEntry") entry1: IndexEntry, @ForAll("anyNullableString") entry2: Any?
     ) {
-        assertNotEquals(entry1, entry2)
+        assertEntriesNotEquals(entry1, entry2)
     }
 
-    private fun assertNotEquals(entry1: Any?, entry2: Any?) {
+    private fun assertEntriesNotEquals(entry1: Any?, entry2: Any?) {
         // Cannot test hash code, since the implementation is not "secure"
         assertAll(
             { assertNotSame(entry1, entry2) },
             { assertNotSame(entry2, entry1) },
-            { kotlin.test.assertNotEquals(entry1, entry2) },
-            { kotlin.test.assertNotEquals(entry2, entry1) },
-            { kotlin.test.assertNotEquals(entry1.toString(), entry2.toString()) },
-            { kotlin.test.assertNotEquals(entry2.toString(), entry1.toString()) },
+            { assertNotEquals(entry1, entry2) },
+            { assertNotEquals(entry2, entry1) },
+            { assertNotEquals(entry1.toString(), entry2.toString()) },
+            { assertNotEquals(entry2.toString(), entry1.toString()) },
         )
     }
 
