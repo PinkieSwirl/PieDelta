@@ -2,12 +2,14 @@ package eu.pieland.delta
 
 import eu.pieland.delta.IndexEntry.*
 import eu.pieland.delta.IndexEntry.State.*
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonNames
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.invariantSeparatorsPathString
@@ -17,20 +19,44 @@ internal sealed class IndexEntry(
     val path: Path,
     val oldHash: String,
     val newHash: String,
-    private val state: State,
-    val pathString: String = path.invariantSeparatorsPathString
+    internal val state: State,
+    internal val hashAlgorithm: HashAlgorithm,
 ) {
+    val pathString: String = path.invariantSeparatorsPathString
+
     enum class State {
         UNCHANGED, CREATED, UPDATED, DELETED
     }
 
-    class Created(path: Path, oldHash: String = "", newHash: String) : IndexEntry(path, oldHash, newHash, CREATED)
-    class Deleted(path: Path, oldHash: String, newHash: String = "") : IndexEntry(path, oldHash, newHash, DELETED)
-    sealed class UnchangedOrUpdated(path: Path, oldHash: String, newHash: String, state: State) :
-        IndexEntry(path, oldHash, newHash, state)
+    class Created(
+        path: Path,
+        oldHash: String = "",
+        newHash: String,
+        hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
+    ) : IndexEntry(path, oldHash, newHash, CREATED, hashAlgorithm)
 
-    class Updated(path: Path, oldSha1: String, newSha1: String) : UnchangedOrUpdated(path, oldSha1, newSha1, UPDATED)
-    class Unchanged(path: Path, sha1: String) : UnchangedOrUpdated(path, sha1, sha1, UNCHANGED)
+    class Deleted(
+        path: Path,
+        oldHash: String,
+        newHash: String = "",
+        hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
+    ) :
+        IndexEntry(path, oldHash, newHash, DELETED, hashAlgorithm)
+
+    sealed class UnchangedOrUpdated(
+        path: Path,
+        oldHash: String,
+        newHash: String,
+        state: State,
+        hashAlgorithm: HashAlgorithm,
+    ) :
+        IndexEntry(path, oldHash, newHash, state, hashAlgorithm)
+
+    class Updated(path: Path, oldSha1: String, newSha1: String, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) :
+        UnchangedOrUpdated(path, oldSha1, newSha1, UPDATED, hashAlgorithm)
+
+    class Unchanged(path: Path, sha1: String, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) :
+        UnchangedOrUpdated(path, sha1, sha1, UNCHANGED, hashAlgorithm)
 
     companion object {
         fun UnchangedOrUpdated(path: Path, oldHash: String, newHash: String): UnchangedOrUpdated {
@@ -60,32 +86,37 @@ internal sealed class IndexEntry(
     }
 }
 
+public enum class HashAlgorithm {
+    SHA_1
+}
+
 @Serializable
 @SerialName("IndexEntry")
-private class IndexEntrySurrogate(val state: State, val path: String, val oldSha1: String, val newSha1: String)
+@OptIn(ExperimentalSerializationApi::class)
+private class IndexEntrySurrogate(
+    val state: State,
+    val path: String,
+    val hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
+    @JsonNames("oldSha1") val oldHash: String = "",
+    @JsonNames("newSha1") val newHash: String = "",
+)
 
 internal object IndexEntrySerializer : KSerializer<IndexEntry> {
     override val descriptor: SerialDescriptor = IndexEntrySurrogate.serializer().descriptor
 
     override fun serialize(encoder: Encoder, value: IndexEntry) {
-        val state = when (value) {
-            is Created -> CREATED
-            is Deleted -> DELETED
-            is Unchanged -> UNCHANGED
-            is Updated -> UPDATED
-        }
         val surrogate =
-            IndexEntrySurrogate(state, value.path.invariantSeparatorsPathString, value.oldHash, value.newHash)
+            IndexEntrySurrogate(value.state, value.pathString, value.hashAlgorithm, value.oldHash, value.newHash)
         encoder.encodeSerializableValue(IndexEntrySurrogate.serializer(), surrogate)
     }
 
     override fun deserialize(decoder: Decoder): IndexEntry {
         val surrogate = decoder.decodeSerializableValue(IndexEntrySurrogate.serializer())
         return when (surrogate.state) {
-            UNCHANGED -> Unchanged(Path(surrogate.path), surrogate.oldSha1)
-            CREATED -> Created(Path(surrogate.path), surrogate.oldSha1, surrogate.newSha1)
-            UPDATED -> Updated(Path(surrogate.path), surrogate.oldSha1, surrogate.newSha1)
-            DELETED -> Deleted(Path(surrogate.path), surrogate.oldSha1, surrogate.newSha1)
+            UNCHANGED -> Unchanged(Path(surrogate.path), surrogate.oldHash, surrogate.hashAlgorithm)
+            CREATED -> Created(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
+            UPDATED -> Updated(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
+            DELETED -> Deleted(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
         }
     }
 }
