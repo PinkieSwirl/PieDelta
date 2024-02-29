@@ -1,6 +1,7 @@
 package eu.pieland.delta
 
-import eu.pieland.delta.IndexEntry.State
+import eu.pieland.delta.HashAlgorithm.SHA_1
+import eu.pieland.delta.IndexEntry.*
 import eu.pieland.delta.IndexEntry.State.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,14 +21,14 @@ internal class IndexEntryPropertyTest {
 
     @Provide
     fun indexEntry(): Arbitrary<IndexEntry> {
-        val anyString = String.any()
-        val anyPath = anyString.alpha()
+        val string = String.any()
+        val path = string.alpha()
         return Enum.any<State>().flatMap {
             when (it!!) {
-                UNCHANGED -> combine(anyPath, anyString) { v1, v2 -> IndexEntry.Unchanged(Path(v1), v2) }
-                CREATED -> combine(anyPath, anyString, anyString) { v1, v2, v3 -> IndexEntry.Created(Path(v1), v2, v3) }
-                UPDATED -> combine(anyPath, anyString, anyString) { v1, v2, v3 -> IndexEntry.Updated(Path(v1), v2, v3) }
-                DELETED -> combine(anyPath, anyString, anyString) { v1, v2, v3 -> IndexEntry.Deleted(Path(v1), v2, v3) }
+                UNCHANGED -> combine(path, string) { v1, v2 -> Unchanged(Path(v1), SHA_1, v2) }
+                CREATED -> combine(path, string, string) { v1, v2, v3 -> Created(Path(v1), SHA_1, v2, v3) }
+                UPDATED -> combine(path, string, string) { v1, v2, v3 -> Updated(Path(v1), SHA_1, v2, v3) }
+                DELETED -> combine(path, string, string) { v1, v2, v3 -> Deleted(Path(v1), SHA_1, v2, v3) }
             }
         }
     }

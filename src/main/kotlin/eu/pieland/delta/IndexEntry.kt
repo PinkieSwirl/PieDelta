@@ -11,7 +11,10 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNames
 import java.nio.file.Path
+import java.security.DigestInputStream
+import java.security.MessageDigest
 import kotlin.io.path.Path
+import kotlin.io.path.inputStream
 import kotlin.io.path.invariantSeparatorsPathString
 
 @Serializable(with = IndexEntrySerializer::class)
@@ -28,39 +31,48 @@ internal sealed class IndexEntry(
         UNCHANGED, CREATED, UPDATED, DELETED
     }
 
-    class Created(
-        path: Path,
-        oldHash: String = "",
-        newHash: String,
-        hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
-    ) : IndexEntry(path, oldHash, newHash, CREATED, hashAlgorithm)
+    class Created(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String = "", newHash: String) :
+        IndexEntry(path, oldHash, newHash, CREATED, hashAlgorithm) {
+        constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
+            path,
+            hashAlgorithm = hashAlgorithm,
+            newHash = with(hashAlgorithm) { resolvedPath.computeHash() })
+    }
 
-    class Deleted(
-        path: Path,
-        oldHash: String,
-        newHash: String = "",
-        hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
-    ) :
-        IndexEntry(path, oldHash, newHash, DELETED, hashAlgorithm)
+    class Deleted(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String = "") :
+        IndexEntry(path, oldHash, newHash, DELETED, hashAlgorithm) {
+        constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
+            path,
+            hashAlgorithm = hashAlgorithm,
+            oldHash = with(hashAlgorithm) { resolvedPath.computeHash() })
+    }
 
     sealed class UnchangedOrUpdated(
         path: Path,
+        hashAlgorithm: HashAlgorithm,
         oldHash: String,
         newHash: String,
         state: State,
-        hashAlgorithm: HashAlgorithm,
     ) :
         IndexEntry(path, oldHash, newHash, state, hashAlgorithm)
 
-    class Updated(path: Path, oldSha1: String, newSha1: String, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) :
-        UnchangedOrUpdated(path, oldSha1, newSha1, UPDATED, hashAlgorithm)
+    class Updated(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String) :
+        UnchangedOrUpdated(path, hashAlgorithm, oldHash, newHash, UPDATED)
 
-    class Unchanged(path: Path, sha1: String, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) :
-        UnchangedOrUpdated(path, sha1, sha1, UNCHANGED, hashAlgorithm)
+    class Unchanged(path: Path, hashAlgorithm: HashAlgorithm, hash: String) :
+        UnchangedOrUpdated(path, hashAlgorithm, hash, hash, UNCHANGED)
 
     companion object {
-        fun UnchangedOrUpdated(path: Path, oldHash: String, newHash: String): UnchangedOrUpdated {
-            return if (oldHash == newHash) Unchanged(path, oldHash) else Updated(path, oldHash, newHash)
+        fun UnchangedOrUpdated(
+            path: Path,
+            resolvedOldPath: Path,
+            resolvedNewPath: Path,
+            hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
+        ): UnchangedOrUpdated {
+            val oldHash = with(hashAlgorithm) { resolvedOldPath.computeHash() }
+            val newHash = with(hashAlgorithm) { resolvedNewPath.computeHash() }
+            return if (oldHash == newHash) Unchanged(path, hashAlgorithm, oldHash)
+            else Updated(path, hashAlgorithm, oldHash, newHash)
         }
     }
 
@@ -87,7 +99,17 @@ internal sealed class IndexEntry(
 }
 
 public enum class HashAlgorithm {
-    SHA_1
+    SHA_1 {
+        @OptIn(ExperimentalStdlibApi::class)
+        override fun Path.computeHash(): String {
+            val md = MessageDigest.getInstance("SHA-1")
+            val output = DigestInputStream(inputStream().buffered(), md)
+            output.use { it.copyTo(NopOutputStream) }
+            return output.messageDigest.digest().toHexString()
+        }
+    };
+
+    public abstract fun Path.computeHash(): String
 }
 
 @Serializable
@@ -113,10 +135,10 @@ internal object IndexEntrySerializer : KSerializer<IndexEntry> {
     override fun deserialize(decoder: Decoder): IndexEntry {
         val surrogate = decoder.decodeSerializableValue(IndexEntrySurrogate.serializer())
         return when (surrogate.state) {
-            UNCHANGED -> Unchanged(Path(surrogate.path), surrogate.oldHash, surrogate.hashAlgorithm)
-            CREATED -> Created(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
-            UPDATED -> Updated(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
-            DELETED -> Deleted(Path(surrogate.path), surrogate.oldHash, surrogate.newHash, surrogate.hashAlgorithm)
+            UNCHANGED -> Unchanged(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash)
+            CREATED -> Created(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
+            UPDATED -> Updated(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
+            DELETED -> Deleted(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
         }
     }
 }

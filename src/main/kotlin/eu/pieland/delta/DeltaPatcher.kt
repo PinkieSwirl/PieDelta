@@ -55,7 +55,7 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
             check(path.exists() && path.isRegularFile()) {
                 "UNCHANGED file does not exists as regular file: ${path.relativeTo(target)}"
             }
-            val hash = path.computeSha1()
+            val hash = with(unchangedEntry.hashAlgorithm) { path.computeHash() }
             check(hash == unchangedEntry.oldHash) {
                 "UNCHANGED file-check failed for file: ${path.relativeTo(target)}"
             }
@@ -82,14 +82,18 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
             check(updatedEntry.path.invariantSeparatorsPathString + ".gdiff" == zipEntry.name) {
                 "Index and zip-stream un-synchronized, index: ${updatedEntry.path}, zip-stream: ${zipEntry.name}"
             }
+
             val path = target.resolve(updatedEntry.path)
             check(path.exists() && path.isRegularFile()) { "UPDATED file doesn't exist: ${path.relativeTo(target)}" }
-            check(path.computeSha1() == updatedEntry.oldHash) {
+            check(with(updatedEntry.hashAlgorithm) { path.computeHash() } == updatedEntry.oldHash) {
                 "UPDATED file-check failed for old file: ${path.relativeTo(target)}"
             }
+
             val patched = target.resolve(updatedEntry.path.invariantSeparatorsPathString + UUID.randomUUID().toString())
             patch(path, patched)
-            check(patched.computeSha1() == updatedEntry.newHash) { "UPDATED file check failed for new file: $patched" }
+            check(with(updatedEntry.hashAlgorithm) { patched.computeHash() } == updatedEntry.newHash) {
+                "UPDATED file check failed for new file: $patched"
+            }
             patched.moveTo(path, StandardCopyOption.REPLACE_EXISTING)
         }
     }
@@ -98,7 +102,7 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
         forEach { deletedEntry ->
             val path = target.resolve(deletedEntry.path)
             check(path.exists() && path.isRegularFile()) { "DELETED file doesn't exist: ${path.relativeTo(target)}" }
-            check(path.computeSha1() == deletedEntry.oldHash) {
+            check(with(deletedEntry.hashAlgorithm) { path.computeHash() } == deletedEntry.oldHash) {
                 "DELETED file-check failed for old file: ${path.relativeTo(target)}"
             }
             path.deleteExisting()

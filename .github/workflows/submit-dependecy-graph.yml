@@ -1,7 +1,9 @@
 name: Submit dependency graph
+
 on:
   push:
-  
+    branches: [ "main" ]
+
 permissions:
   contents: write
 
@@ -9,10 +11,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4.1.1
-    - name: Setup Gradle to generate and submit dependency graphs
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        dependency-graph: generate-and-submit
-    - name: Run a build and generate the dependency graph which will be submitted post-job
-      run: ./gradlew assemble
+      - uses: actions/checkout@v4.1.1
+      - name: Setup Gradle to generate and submit dependency graphs
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          dependency-graph: generate-and-submit
+      - name: Run a build and generate the dependency graph which will be submitted post-job
+        run: ./gradlew assemble

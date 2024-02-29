@@ -5,9 +5,6 @@ import java.nio.channels.FileChannel
 import java.nio.channels.SeekableByteChannel
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
-import java.security.DigestInputStream
-import java.security.MessageDigest
-import kotlin.io.path.inputStream
 
 
 internal const val EOF: UByte = 0u
@@ -31,13 +28,7 @@ internal inline fun <reified F : T, reified S : T, T> Iterable<T>.partitionByTyp
     return Pair(first, second)
 }
 
-@OptIn(ExperimentalStdlibApi::class)
-internal fun Path.computeSha1(): String {
-    val md = MessageDigest.getInstance("SHA-1")
-    val output = DigestInputStream(inputStream().buffered(), md)
-    output.use { it.copyTo(NopOutputStream) }
-    return output.messageDigest.digest().toHexString()
-}
+
 
 internal object NopOutputStream : OutputStream() {
     override fun write(b: Int) = Unit
