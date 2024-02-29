@@ -212,7 +212,7 @@ internal class DeltaHappyFlowTest {
 internal fun Path.toComparableMap(): TreeMap<Path, String> {
     return TreeMap(walk(PathWalkOption.INCLUDE_DIRECTORIES).map { childPath ->
         childPath.relativeTo(this) to
-                if (childPath.isRegularFile()) childPath.computeSha1()
+                if (childPath.isRegularFile()) with(HashAlgorithm.SHA_1) { childPath.computeHash() }
                 else childPath.relativeTo(this).invariantSeparatorsPathString.lowercase(Locale.ENGLISH)
     }.toMap())
 }
