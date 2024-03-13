@@ -10,9 +10,11 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNames
+import java.io.InputStream
 import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import java.util.zip.CRC32
 import kotlin.io.path.Path
 import kotlin.io.path.inputStream
 import kotlin.io.path.invariantSeparatorsPathString
@@ -35,7 +37,7 @@ internal sealed class IndexEntry(
         IndexEntry(path, oldHash, newHash, CREATED, hashAlgorithm) {
         constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
             path,
-            hashAlgorithm = hashAlgorithm,
+            hashAlgorithm,
             newHash = with(hashAlgorithm) { resolvedPath.computeHash() })
     }
 
@@ -43,7 +45,7 @@ internal sealed class IndexEntry(
         IndexEntry(path, oldHash, newHash, DELETED, hashAlgorithm) {
         constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
             path,
-            hashAlgorithm = hashAlgorithm,
+            hashAlgorithm,
             oldHash = with(hashAlgorithm) { resolvedPath.computeHash() })
     }
 
@@ -76,7 +78,7 @@ internal sealed class IndexEntry(
         }
     }
 
-    override fun toString(): String = "IndexEntry[path=$path, state=$state, oldSha1=$oldHash, newSha1=$newHash]"
+    override fun toString(): String = "IndexEntry[path=$path, state=$state, oldHash=$oldHash, newHash=$newHash]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -84,6 +86,7 @@ internal sealed class IndexEntry(
 
         other as IndexEntry
 
+        if (hashAlgorithm != other.hashAlgorithm) return false
         if (path != other.path) return false
         if (oldHash != other.oldHash) return false
         return newHash == other.newHash
@@ -102,12 +105,34 @@ public enum class HashAlgorithm {
     SHA_1 {
         @OptIn(ExperimentalStdlibApi::class)
         override fun Path.computeHash(): String {
-            val md = MessageDigest.getInstance("SHA-1")
-            val output = DigestInputStream(inputStream().buffered(), md)
-            output.use { it.copyTo(NopOutputStream) }
-            return output.messageDigest.digest().toHexString()
+            val digestStream = DigestInputStream(inputStream().buffered(), MessageDigest.getInstance("SHA-1"))
+            digestStream.useAll()
+            return digestStream.messageDigest.digest().toHexString()
         }
-    };
+    },
+    CRC32 {
+        @OptIn(ExperimentalStdlibApi::class)
+        override fun Path.computeHash(): String {
+            val crc32 = CRC32()
+            inputStream().buffered().useAll { b, off, len -> crc32.update(b, off, len) }
+            return crc32.value.toInt().toHexString()
+        }
+    },
+    ;
+
+    protected fun InputStream.useAll(
+        bufferSize: Int = DEFAULT_BUFFER_SIZE,
+        write: (ByteArray, Int, Int) -> Unit = { _, _, _ -> },
+    ) {
+        use {
+            val buffer = ByteArray(bufferSize)
+            var bytes = read(buffer)
+            while (bytes >= 0) {
+                write(buffer, 0, bytes)
+                bytes = read(buffer)
+            }
+        }
+    }
 
     public abstract fun Path.computeHash(): String
 }
@@ -120,8 +145,7 @@ private class IndexEntrySurrogate(
     val path: String,
     val hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
     @JsonNames("oldSha1") val oldHash: String = "",
-    @JsonNames("newSha1") val newHash: String = "",
-)
+    @JsonNames("newSha1") val newHash: String = "",)
 
 internal object IndexEntrySerializer : KSerializer<IndexEntry> {
     override val descriptor: SerialDescriptor = IndexEntrySurrogate.serializer().descriptor

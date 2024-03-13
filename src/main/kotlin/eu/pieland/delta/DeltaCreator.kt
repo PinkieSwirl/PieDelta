@@ -180,30 +180,35 @@ private class GDiffCreator(
         return sourceChecksums.indexOf(targetChecksum).toLong() * chunkSize
     }
 
-    @Suppress("ReturnCount")
     fun findLongestMatch(): Int {
-        var matchLength = 0
         needsChecksumUpdate = true
-        while (true) {
-            if (!sourceBuffer.hasRemaining()) {
-                sourceBuffer.clear()
-                val read = source.read(sourceBuffer)
-                sourceBuffer.flip()
-                if (read == -1) return matchLength
-            }
-            if (!targetBuffer.hasRemaining()) {
-                readFromTargetToBuffer()
-                if (!targetBuffer.hasRemaining()) {
-                    eof = true
-                    return matchLength
-                }
-            }
-            if (sourceBuffer.get() != targetBuffer.get()) {
-                targetBuffer.position(targetBuffer.position() - 1)
-                return matchLength
-            }
+        var matchLength = 0
+        while (ensureSourceBufferReadable() && ensureTargetBufferReadable() && isMatching()) {
             matchLength++
         }
+        return matchLength
+    }
+
+    private fun ensureSourceBufferReadable(): Boolean {
+        if (sourceBuffer.hasRemaining()) return true
+        sourceBuffer.clear()
+        val read = source.read(sourceBuffer)
+        sourceBuffer.flip()
+        return read != -1
+    }
+
+    private fun ensureTargetBufferReadable(): Boolean {
+        if (targetBuffer.hasRemaining()) return true
+        readFromTargetToBuffer()
+        if (targetBuffer.hasRemaining()) return true
+        eof = true
+        return false
+    }
+
+    private fun isMatching(): Boolean {
+        if (sourceBuffer.get() == targetBuffer.get()) return true
+        targetBuffer.position(targetBuffer.position() - 1)
+        return false
     }
 
     private fun readFromTargetToBuffer(): Int {
