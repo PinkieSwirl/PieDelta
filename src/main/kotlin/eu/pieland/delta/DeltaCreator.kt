@@ -123,13 +123,16 @@ private class GDiffCreator(
     private var targetChecksum: DeltaCreatorChecksum = DeltaCreatorChecksum()
     private var needsChecksumUpdate = true
     private var eof = false
+    private val longestMatchFinder = LongestMatchFinder(source, sourceBuffer, target, targetBuffer)
 
     fun create() {
         while (!eof) {
             val possibleChecksumPositionInSource = tryFindTargetChecksumInSourceChecksums()
             if (possibleChecksumPositionInSource >= 0) {
                 source.position(possibleChecksumPositionInSource)
-                val matchLength = findLongestMatch()
+                needsChecksumUpdate = true
+                val matchLength = longestMatchFinder.find()
+                if (!targetBuffer.hasRemaining()) eof = true
                 if (matchLength >= chunkSize) {
                     output.addCopy(possibleChecksumPositionInSource, matchLength)
                 } else {
@@ -145,12 +148,14 @@ private class GDiffCreator(
     private fun GDiffWriter.addData() {
         prepareAddData()
         if (eof) return
-        addData(targetBuffer.get().also { tryIncrementChecksum(it) })
+        val nextByte = targetBuffer.get()
+        tryIncrementChecksum(nextByte)
+        addData(nextByte)
     }
 
     fun prepareAddData() {
         if (targetBuffer.remaining() > chunkSize) return
-        readFromTargetToBuffer()
+        target.fillBuffer(targetBuffer)
         if (targetBuffer.hasRemaining()) return
         eof = true
     }
@@ -171,7 +176,7 @@ private class GDiffCreator(
         }
         if (needsChecksumUpdate) {
             while (targetBuffer.remaining() < chunkSize) {
-                val read = readFromTargetToBuffer()
+                val read = target.fillBuffer(targetBuffer)
                 if (read == -1) return -1
             }
             targetChecksum = targetBuffer.computeChecksum(chunkSize)
@@ -179,39 +184,49 @@ private class GDiffCreator(
         }
         return sourceChecksums.indexOf(targetChecksum).toLong() * chunkSize
     }
+}
 
-    @Suppress("ReturnCount")
-    fun findLongestMatch(): Int {
+private class LongestMatchFinder(
+    private val source: SeekableByteChannel,
+    private val sourceBuffer: ByteBuffer,
+    private val target: ReadableByteChannel,
+    private val targetBuffer: ByteBuffer,
+) {
+    fun find(): Int {
         var matchLength = 0
-        needsChecksumUpdate = true
-        while (true) {
-            if (!sourceBuffer.hasRemaining()) {
-                sourceBuffer.clear()
-                val read = source.read(sourceBuffer)
-                sourceBuffer.flip()
-                if (read == -1) return matchLength
-            }
-            if (!targetBuffer.hasRemaining()) {
-                readFromTargetToBuffer()
-                if (!targetBuffer.hasRemaining()) {
-                    eof = true
-                    return matchLength
-                }
-            }
-            if (sourceBuffer.get() != targetBuffer.get()) {
-                targetBuffer.position(targetBuffer.position() - 1)
-                return matchLength
-            }
+        while (ensureSourceBufferReadable() && ensureTargetBufferReadable() && isMatching()) {
             matchLength++
         }
+        return matchLength
     }
 
-    private fun readFromTargetToBuffer(): Int {
-        targetBuffer.compact()
-        val read = target.read(targetBuffer)
-        targetBuffer.flip()
-        return read
+    private fun ensureSourceBufferReadable(): Boolean {
+        if (sourceBuffer.hasRemaining()) return true
+        sourceBuffer.clear()
+        val read = source.read(sourceBuffer)
+        sourceBuffer.flip()
+        return read != -1
     }
+
+    private fun ensureTargetBufferReadable(): Boolean {
+        if (targetBuffer.hasRemaining()) return true
+        target.fillBuffer(targetBuffer)
+        return targetBuffer.hasRemaining()
+    }
+
+    private fun isMatching(): Boolean {
+        if (sourceBuffer.get() == targetBuffer.get()) return true
+        targetBuffer.position(targetBuffer.position() - 1)
+        return false
+    }
+
+}
+
+private fun ReadableByteChannel.fillBuffer(byteBuffer: ByteBuffer): Int {
+    byteBuffer.compact()
+    val read = read(byteBuffer)
+    byteBuffer.flip()
+    return read
 }
 
 /** GDIFF-Format as specified by https://www.w3.org/TR/NOTE-gdiff-19970901 */
