@@ -103,7 +103,7 @@ private inline fun <reified T> List<T>.combine(args: (T, T) -> Arguments): List<
 }
 
 private val PATH_A_HASH_PAIRS = listOf(Pair(SHA_1, SHA_1_PATH_A), Pair(CRC32, CRC32_PATH_A))
-private val PATH_B_HASH_PAIRS = listOf(Pair(SHA_1, SHA_1_PATH_B), Pair(CRC32, CRC32_PATH_B))
+private val PATH_B_HASHES = mapOf(Pair(SHA_1, SHA_1_PATH_B), Pair(CRC32, CRC32_PATH_B))
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class IndexEntryTest {
@@ -115,6 +115,8 @@ internal class IndexEntryTest {
             val createdJsons = createdJsons(alg, hash)
             val deletedJsons = deletedJsons(alg, hash)
             val unchangedJsons = unchangedJsons(alg, hash)
+            val newHash = PATH_B_HASHES[alg]!!
+            val updatedJsons = updatedJsons(alg, hash, newHash)
             createdJsons.flatMap { json ->
                 createdConstructors(alg, hash).combine { createEntry1, createEntry2 ->
                     arguments(
@@ -145,19 +147,15 @@ internal class IndexEntryTest {
                         unchangedJsons.first(),
                     )
                 }
-            } + PATH_B_HASH_PAIRS.filter { alg == it.first }.flatMap { pairB ->
-                val newHash = pairB.second
-                val updatedJsons = updatedJsons(alg, hash, newHash)
-                updatedJsons.flatMap { json ->
-                    updatedConstructors(alg, hash, newHash).combine { createEntry1, createEntry2 ->
-                        arguments(
-                            "IndexEntry[path=test, state=UPDATED, oldHash=$hash, newHash=$newHash]",
-                            createEntry1,
-                            createEntry2,
-                            json,
-                            updatedJsons.first(),
-                        )
-                    }
+            } + updatedJsons.flatMap { json ->
+                updatedConstructors(alg, hash, newHash).combine { createEntry1, createEntry2 ->
+                    arguments(
+                        "IndexEntry[path=test, state=UPDATED, oldHash=$hash, newHash=$newHash]",
+                        createEntry1,
+                        createEntry2,
+                        json,
+                        updatedJsons.first(),
+                    )
                 }
             }
         }
