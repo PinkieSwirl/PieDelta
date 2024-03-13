@@ -23,7 +23,7 @@ private const val CRC32_PATH_A = "9f695a8b"
 private const val SHA_1_PATH_B = "9e111d09767a612d410cd01762b68d785726d6fa"
 private const val CRC32_PATH_B = "f8141cfb"
 
-private fun createdJsons(alg: HashAlgorithm, newHash: String): List<String> {
+private fun created(alg: HashAlgorithm, newHash: String): List<String> {
     return if (alg == SHA_1) listOf(
         """{"state":"CREATED","path":"test","newHash":"$newHash"}""",
         """{"state":"CREATED","path":"test","newSha1":"$newHash"}""",
@@ -43,7 +43,7 @@ private fun createdConstructors(hashAlgorithm: HashAlgorithm, newHash: String) =
     { IndexEntry.Created(fileName, hashAlgorithm, newHash = newHash) },
 )
 
-private fun deletedJsons(alg: HashAlgorithm, oldHash: String): List<String> {
+private fun deleted(alg: HashAlgorithm, oldHash: String): List<String> {
     return if (alg == SHA_1) listOf(
         """{"state":"DELETED","path":"test","oldHash":"$oldHash"}""",
         """{"state":"DELETED","path":"test","oldSha1":"$oldHash"}""",
@@ -62,7 +62,7 @@ private fun deletedConstructors(hashAlgorithm: HashAlgorithm, newHash: String) =
     { IndexEntry.Deleted(fileName, hashAlgorithm, oldHash = newHash) },
 )
 
-private fun updatedJsons(alg: HashAlgorithm, oldHash: String, newHash: String): List<String> {
+private fun updated(alg: HashAlgorithm, oldHash: String, newHash: String): List<String> {
     return if (alg == SHA_1) listOf(
         """{"state":"UPDATED","path":"test","oldHash":"$oldHash","newHash":"$newHash"}""",
         """{"state":"UPDATED","path":"test","oldSha1":"$oldHash","newSha1":"$newHash"}""",
@@ -80,7 +80,7 @@ private fun updatedConstructors(hashAlgorithm: HashAlgorithm, oldHash: String, n
     { IndexEntry.UnchangedOrUpdated(fileName, pathA, pathB, hashAlgorithm) },
 )
 
-private fun unchangedJsons(alg: HashAlgorithm, hash: String): List<String> {
+private fun unchanged(alg: HashAlgorithm, hash: String): List<String> {
     return if (alg == SHA_1) listOf(
         """{"state":"UNCHANGED","path":"test","oldHash":"$hash","newHash":"$hash"}""",
         """{"state":"UNCHANGED","path":"test","oldSha1":"$hash","newSha1":"$hash"}""",
@@ -112,52 +112,31 @@ internal class IndexEntryTest {
         return PATH_A_HASH_PAIRS.flatMap { pair ->
             val alg = pair.first
             val hash = pair.second
-            val createdJsons = createdJsons(alg, hash)
-            val deletedJsons = deletedJsons(alg, hash)
-            val unchangedJsons = unchangedJsons(alg, hash)
             val newHash = PATH_B_HASHES[alg]!!
-            val updatedJsons = updatedJsons(alg, hash, newHash)
-            createdJsons.flatMap { json ->
-                createdConstructors(alg, hash).combine { createEntry1, createEntry2 ->
-                    arguments(
-                        "IndexEntry[path=test, state=CREATED, oldHash=, newHash=$hash]",
-                        createEntry1,
-                        createEntry2,
-                        json,
-                        createdJsons.first(),
-                    )
-                }
-            } + deletedJsons.flatMap { json ->
-                deletedConstructors(alg, hash).combine { createEntry1, createEntry2 ->
-                    arguments(
-                        "IndexEntry[path=test, state=DELETED, oldHash=$hash, newHash=]",
-                        createEntry1,
-                        createEntry2,
-                        json,
-                        deletedJsons.first(),
-                    )
-                }
-            } + unchangedJsons.flatMap { json ->
-                unchangedConstructors(alg, hash).combine { createEntry1, createEntry2 ->
-                    arguments(
-                        "IndexEntry[path=test, state=UNCHANGED, oldHash=$hash, newHash=$hash]",
-                        createEntry1,
-                        createEntry2,
-                        json,
-                        unchangedJsons.first(),
-                    )
-                }
-            } + updatedJsons.flatMap { json ->
-                updatedConstructors(alg, hash, newHash).combine { createEntry1, createEntry2 ->
-                    arguments(
-                        "IndexEntry[path=test, state=UPDATED, oldHash=$hash, newHash=$newHash]",
-                        createEntry1,
-                        createEntry2,
-                        json,
-                        updatedJsons.first(),
-                    )
-                }
-            }
+            val created = created(alg, hash).args("CREATED", createdConstructors(alg, hash), newHash = hash)
+            val deleted = deleted(alg, hash).args("DELETED", deletedConstructors(alg, hash), oldHash = hash)
+            val unchanged = unchanged(alg, hash).args("UNCHANGED", unchangedConstructors(alg, hash), hash, hash)
+            val updated =
+                updated(alg, hash, newHash).args("UPDATED", updatedConstructors(alg, hash, newHash), hash, newHash)
+
+            return@flatMap created + deleted + unchanged + updated
+        }
+    }
+
+    private fun List<String>.args(
+        state: String,
+        constructors: List<() -> IndexEntry>,
+        oldHash: String = "",
+        newHash: String = "",
+    ) = flatMap { json ->
+        constructors.combine { createEntry1, createEntry2 ->
+            arguments(
+                "IndexEntry[path=test, state=$state, oldHash=$oldHash, newHash=$newHash]",
+                createEntry1,
+                createEntry2,
+                json,
+                first(),
+            )
         }
     }
 
