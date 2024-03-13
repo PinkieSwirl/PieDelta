@@ -111,13 +111,13 @@ internal class IndexEntryTest {
     private fun equalIndexEntries(): List<Arguments> {
         return PATH_A_HASH_PAIRS.flatMap { pair ->
             val alg = pair.first
-            val hash = pair.second
-            val newHash = PATH_B_HASHES[alg]!!
-            val created = created(alg, hash).args("CREATED", createdConstructors(alg, hash), newHash = hash)
-            val deleted = deleted(alg, hash).args("DELETED", deletedConstructors(alg, hash), oldHash = hash)
-            val unchanged = unchanged(alg, hash).args("UNCHANGED", unchangedConstructors(alg, hash), hash, hash)
+            val hashA = pair.second
+            val hashB = PATH_B_HASHES[alg]!!
+            val created = created(alg, hashA).args("CREATED", createdConstructors(alg, hashA), newHash = hashA)
+            val deleted = deleted(alg, hashA).args("DELETED", deletedConstructors(alg, hashA), oldHash = hashA)
+            val unchanged = unchanged(alg, hashA).args("UNCHANGED", unchangedConstructors(alg, hashA), hashA, hashA)
             val updated =
-                updated(alg, hash, newHash).args("UPDATED", updatedConstructors(alg, hash, newHash), hash, newHash)
+                updated(alg, hashA, hashB).args("UPDATED", updatedConstructors(alg, hashA, hashB), hashA, hashB)
 
             return@flatMap created + deleted + unchanged + updated
         }
