@@ -12,7 +12,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNames
 import java.io.InputStream
 import java.nio.file.Path
-import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.zip.CRC32
 import kotlin.io.path.Path
@@ -105,24 +104,24 @@ public enum class HashAlgorithm {
     SHA_1 {
         @OptIn(ExperimentalStdlibApi::class)
         override fun Path.computeHash(): String {
-            val digestStream = DigestInputStream(inputStream().buffered(), MessageDigest.getInstance("SHA-1"))
-            digestStream.useAll()
-            return digestStream.messageDigest.digest().toHexString()
+            val digest = MessageDigest.getInstance("SHA-1")
+            inputStream().buffered().useAll { input, offset, length -> digest.update(input, offset, length) }
+            return digest.digest().toHexString()
         }
     },
     CRC32 {
         @OptIn(ExperimentalStdlibApi::class)
         override fun Path.computeHash(): String {
             val crc32 = CRC32()
-            inputStream().buffered().useAll { b, off, len -> crc32.update(b, off, len) }
+            inputStream().buffered().useAll { input, offset, length -> crc32.update(input, offset, length) }
             return crc32.value.toInt().toHexString()
         }
     },
     ;
 
-    protected fun InputStream.useAll(
+    protected inline fun InputStream.useAll(
         bufferSize: Int = DEFAULT_BUFFER_SIZE,
-        write: (ByteArray, Int, Int) -> Unit = { _, _, _ -> },
+        write: (ByteArray, Int, Int) -> Unit,
     ) {
         use {
             val buffer = ByteArray(bufferSize)
@@ -145,7 +144,8 @@ private class IndexEntrySurrogate(
     val path: String,
     val hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1,
     @JsonNames("oldSha1") val oldHash: String = "",
-    @JsonNames("newSha1") val newHash: String = "",)
+    @JsonNames("newSha1") val newHash: String = "",
+)
 
 internal object IndexEntrySerializer : KSerializer<IndexEntry> {
     override val descriptor: SerialDescriptor = IndexEntrySurrogate.serializer().descriptor
