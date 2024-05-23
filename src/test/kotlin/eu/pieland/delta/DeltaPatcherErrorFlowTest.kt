@@ -26,7 +26,7 @@ internal class DeltaPatcherErrorFlowTest {
     private val existingDir = Path("src")
     private val nonExistingPath = Path("~")
 
-    fun invalidConfigurations(): List<Arguments> {
+    private fun invalidConfigurations(): List<Arguments> {
         return listOf(
             arguments(
                 { deltaPatcher(zipPatch = ZipInputStream(ByteArrayInputStream(byteArrayOf(1)))) },
@@ -71,7 +71,7 @@ diff-wrong-index-created.zip, 'Index and zip-stream un-synchronized, index: wron
         assertEquals(expectedMessage, exception.message)
     }
 
-    fun invalidFiles() = listOf(
+    private fun invalidFiles() = listOf(
         arguments({ targetPath(deletedName = null) }, "DELETED file doesn't exist: deleted"),
         arguments({ targetPath(deletedName = "wrong") }, "DELETED file doesn't exist: deleted"),
         arguments({ targetPath(deletedContent = null) }, "DELETED file doesn't exist: deleted"),

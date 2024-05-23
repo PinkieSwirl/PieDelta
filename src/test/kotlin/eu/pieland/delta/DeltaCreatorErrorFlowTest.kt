@@ -17,7 +17,7 @@ internal class DeltaCreatorErrorFlowTest {
     private val existingDir = Path("src")
     private val nonExistingPath = Path("~")
 
-    fun invalidConfigurations(): List<Arguments> {
+    private fun invalidConfigurations(): List<Arguments> {
         return listOf(
             arguments({ deltaCreator(source = existingFile) }, "'source' must be an existing directory"),
             arguments({ deltaCreator(source = nonExistingPath) }, "'source' must be an existing directory"),
