@@ -8,18 +8,21 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: read
-      contents: read
+      # required for all workflows
       security-events: write
+      # required to fetch internal or private CodeQL packs
+      packages: read
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'java-kotlin' ]
+        include:
+        - language: 'java-kotlin'
+          build-mode: autobuild
 
     steps:
     - name: Checkout repository
@@ -29,9 +32,7 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+        build-mode: ${{ matrix.build-mode }}
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
