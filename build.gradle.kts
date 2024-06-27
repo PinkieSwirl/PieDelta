@@ -3,6 +3,7 @@ plugins {
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
     id("com.autonomousapps.dependency-analysis")
+    id("org.jetbrains.kotlinx.binary-compatibility-validator")
     jacoco
 }
 
@@ -63,7 +64,6 @@ jacoco {
 }
 
 kotlin {
-    explicitApi()
     jvmToolchain(8)
 }
 

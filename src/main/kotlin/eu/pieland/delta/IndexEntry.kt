@@ -100,7 +100,7 @@ internal sealed class IndexEntry(
     }
 }
 
-public enum class HashAlgorithm {
+enum class HashAlgorithm {
     SHA_1 {
         @OptIn(ExperimentalStdlibApi::class)
         override fun Path.computeHash(): String {
@@ -133,7 +133,7 @@ public enum class HashAlgorithm {
         }
     }
 
-    public abstract fun Path.computeHash(): String
+    abstract fun Path.computeHash(): String
 }
 
 @Serializable
