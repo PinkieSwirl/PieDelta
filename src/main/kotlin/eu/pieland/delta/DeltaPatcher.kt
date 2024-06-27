@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream
 import kotlin.io.path.*
 import kotlin.math.min
 
-public class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Path) {
+class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Path) {
     private val created: List<Created>
     private val deleted: List<Deleted>
     private val updated: List<Updated>
@@ -41,7 +41,7 @@ public class DeltaPatcher(private val zipPatch: ZipInputStream, private val targ
         }
     }
 
-    public fun patch(): Path {
+    fun patch(): Path {
         unchanged.check()
         created.create()
         updated.update()

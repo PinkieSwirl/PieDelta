@@ -22,7 +22,7 @@ import kotlin.io.path.*
 private const val DEFAULT_CHUNK_SIZE = 16
 private const val DEFAULT_BLOCK_SIZE_MULTIPLIER = 4
 
-public class DeltaCreator(
+class DeltaCreator(
     private val source: Path,
     private val target: Path,
     private val patch: Path,
@@ -57,7 +57,7 @@ public class DeltaCreator(
     private fun Path.relativePaths(): Set<Path> =
         walk().filter { it.isRegularFile() }.map { it.normalize().relativeTo(this) }.toSortedSet()
 
-    public fun create(): Path {
+    fun create(): Path {
         return patch.apply { parent.createDirectories() }.outZip()
             .use { patchOut -> patchOut.writeIndex().writeCreated().writeUpdated() }
     }

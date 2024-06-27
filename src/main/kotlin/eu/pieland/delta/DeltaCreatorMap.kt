@@ -1,10 +1,10 @@
 package eu.pieland.delta
 
-public interface DeltaCreatorMap {
+interface DeltaCreatorMap {
 
-    public fun getOrDefault(key: Long, default: Int): Int
+    fun getOrDefault(key: Long, default: Int): Int
 
-    public fun putIfAbsent(key: Long, value: Int)
+    fun putIfAbsent(key: Long, value: Int)
 }
 
 internal class HashDeltaCreatorMap : DeltaCreatorMap {
