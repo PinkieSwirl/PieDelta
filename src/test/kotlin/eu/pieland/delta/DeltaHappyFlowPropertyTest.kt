@@ -29,10 +29,12 @@ internal object DeltaHappyFlowPropertyTest {
             combine(filenames, extensions) { filename, extension -> "$filename.$extension" }.map { Path(it) }
         val fileContents =
             combine(
+                Int.any(0..10),
+                Int.any(0..100),
                 String.any().ofLength(1..100000).withoutEdgeCases(),
                 Arbitraries.just("same")
-            ) { random, same ->
-                random.repeat(10) + same.repeat(100)
+            ) { randomCount, sameCount, random, same ->
+                random.repeat(randomCount) + same.repeat(sameCount)
             }.map { it.toByteArray() }
 
         return Arbitraries.maps(completeFilenames, fileContents).uniqueKeys { it.invariantSeparatorsPathString }
@@ -49,7 +51,7 @@ internal object DeltaHappyFlowPropertyTest {
         tempDir: Path,
         @ForAll("chunkSizes") chunkSize: Int,
         @ForAll("filenameMap") sourceMap: Map<Path, ByteArray>,
-        @ForAll("filenameMap") targetMap: Map<Path, ByteArray>
+        @ForAll("filenameMap") targetMap: Map<Path, ByteArray>,
     ) {
         // setup
         val source = sourceMap.createOnFileSystem(tempDir, "source")
@@ -96,3 +98,5 @@ internal fun Map<Path, ByteArray>.createOnFileSystem(tempDir: Path, rootPathStri
         }
     }
 }
+
+

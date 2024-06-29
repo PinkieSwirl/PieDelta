@@ -21,11 +21,27 @@ internal class DeltaHappyFlowFixedPropertiesTest {
         val targetMap: Map<Path, ByteArray> = mapOf()
         val source = sourceMap.createOnFileSystem(tmpdir, "source")
         val target = targetMap.createOnFileSystem(tmpdir, "target")
+
+        test(target, source, chunkSize = 16)
+    }
+
+    @Test
+    fun `test copy command does not abort creating gdiff to early`() {
+        // setup
+        val sourceMap: Map<Path, ByteArray> = mapOf(Path(".N") to "a".toByteArray())
+        val targetMap: Map<Path, ByteArray> = mapOf(Path(".n") to "samesamesame".toByteArray())
+        val source = sourceMap.createOnFileSystem(tmpdir, "source")
+        val target = targetMap.createOnFileSystem(tmpdir, "target")
+
+        test(target, source, chunkSize = 1)
+    }
+
+    private fun test(target: Path, source: Path, chunkSize: Int) {
         val expected = target.toComparableMap()
         assertNotEquals(expected, source.toComparableMap())
 
         // act
-        val delta = DeltaCreator(source, target, tmpdir.resolve("patch.zip")).create()
+        val delta = DeltaCreator(source, target, tmpdir.resolve("patch.zip"), chunkSize).create()
         delta.inZip().use { DeltaPatcher(it, source).patch() }
 
         // assert
