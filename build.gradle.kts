@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
-    id("com.autonomousapps.dependency-analysis")
+    //id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     jacoco
 }
@@ -42,8 +42,8 @@ dependencies {
 }
 
 tasks.test {
-    minHeapSize = "2g"
-    maxHeapSize = "4g"
+    minHeapSize = "8g"
+    maxHeapSize = "16g"
     useJUnitPlatform {
         includeEngines("junit-jupiter", "jqwik")
         excludeTags("slow")

@@ -29,7 +29,7 @@ jobs:
     - uses: actions/setup-java@v4.2.1
       with:
         distribution: zulu
-        java-version: 21
+        java-version: 8
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3

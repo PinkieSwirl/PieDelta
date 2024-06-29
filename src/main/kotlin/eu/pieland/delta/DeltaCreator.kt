@@ -123,7 +123,6 @@ private class GDiffCreator(
     private var targetChecksum: DeltaCreatorChecksum = DeltaCreatorChecksum()
     private var needsChecksumUpdate = true
     private var eof = false
-    private val longestMatchFinder = LongestMatchFinder(source, sourceBuffer, target, targetBuffer)
 
     fun create() {
         while (!eof) {
@@ -131,8 +130,7 @@ private class GDiffCreator(
             if (possibleChecksumPositionInSource >= 0) {
                 source.position(possibleChecksumPositionInSource)
                 needsChecksumUpdate = true
-                val matchLength = longestMatchFinder.find()
-                if (!targetBuffer.hasRemaining()) eof = true
+                val matchLength = findLongestMatch()
                 if (matchLength >= chunkSize) {
                     output.addCopy(possibleChecksumPositionInSource, matchLength)
                 } else {
@@ -155,7 +153,7 @@ private class GDiffCreator(
 
     fun prepareAddData() {
         if (targetBuffer.remaining() > chunkSize) return
-        target.fillBuffer(targetBuffer)
+        target.fillBuffer(targetBuffer) { compact() }
         if (targetBuffer.hasRemaining()) return
         eof = true
     }
@@ -176,7 +174,7 @@ private class GDiffCreator(
         }
         if (needsChecksumUpdate) {
             while (targetBuffer.remaining() < chunkSize) {
-                val read = target.fillBuffer(targetBuffer)
+                val read = target.fillBuffer(targetBuffer) { compact() }
                 if (read == -1) return -1
             }
             targetChecksum = targetBuffer.computeChecksum(chunkSize)
@@ -184,15 +182,8 @@ private class GDiffCreator(
         }
         return sourceChecksums.indexOf(targetChecksum).toLong() * chunkSize
     }
-}
 
-private class LongestMatchFinder(
-    private val source: SeekableByteChannel,
-    private val sourceBuffer: ByteBuffer,
-    private val target: ReadableByteChannel,
-    private val targetBuffer: ByteBuffer,
-) {
-    fun find(): Int {
+    fun findLongestMatch(): Int {
         var matchLength = 0
         while (ensureSourceBufferReadable() && ensureTargetBufferReadable() && isMatching()) {
             matchLength++
@@ -202,16 +193,13 @@ private class LongestMatchFinder(
 
     private fun ensureSourceBufferReadable(): Boolean {
         if (sourceBuffer.hasRemaining()) return true
-        sourceBuffer.clear()
-        val read = source.read(sourceBuffer)
-        sourceBuffer.flip()
-        return read != -1
+        return source.fillBuffer(sourceBuffer) { clear() } != -1
     }
 
     private fun ensureTargetBufferReadable(): Boolean {
         if (targetBuffer.hasRemaining()) return true
-        target.fillBuffer(targetBuffer)
-        return targetBuffer.hasRemaining()
+        target.fillBuffer(targetBuffer) { compact() }
+        return targetBuffer.hasRemaining().also { if (!it) eof = true }
     }
 
     private fun isMatching(): Boolean {
@@ -219,11 +207,10 @@ private class LongestMatchFinder(
         targetBuffer.position(targetBuffer.position() - 1)
         return false
     }
-
 }
 
-private fun ReadableByteChannel.fillBuffer(byteBuffer: ByteBuffer): Int {
-    byteBuffer.compact()
+private inline fun ReadableByteChannel.fillBuffer(byteBuffer: ByteBuffer, setupBuffer: ByteBuffer.() -> Unit): Int {
+    byteBuffer.setupBuffer()
     val read = read(byteBuffer)
     byteBuffer.flip()
     return read

@@ -65,8 +65,9 @@ class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Pat
     private fun List<Created>.create() {
         forEach { createdEntry ->
             val entry = checkNotNull(zipPatch.nextEntry)
-            check(createdEntry.path.invariantSeparatorsPathString == entry.name)
-            { "Index and zip-stream un-synchronized, index: ${createdEntry.path}, zip-stream: ${entry.name}" }
+            check(createdEntry.path.invariantSeparatorsPathString == entry.name) {
+                "Index and zip-stream un-synchronized, index: ${createdEntry.path}, zip-stream: ${entry.name}"
+            }
             val path = target.resolve(createdEntry.path)
             check(path.notExists()) { "CREATED file already exists: ${path.relativeTo(target)}" }
             path.parent.createDirectories()
