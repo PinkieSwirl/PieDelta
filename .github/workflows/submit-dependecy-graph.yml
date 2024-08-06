@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.7
       - name: Setup Gradle to generate and submit dependency graphs
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           dependency-graph: generate-and-submit
       - name: Run a build and generate the dependency graph which will be submitted post-job
