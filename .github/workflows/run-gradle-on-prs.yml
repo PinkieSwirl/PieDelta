@@ -26,7 +26,7 @@ jobs:
       run: ./gradlew jacocoTestReport
 
     - name: Publish Coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         verbose: true
         token: ${{ secrets.CODECOV_TOKEN }}
