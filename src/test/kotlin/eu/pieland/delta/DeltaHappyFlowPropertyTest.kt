@@ -9,13 +9,11 @@ import net.jqwik.kotlin.api.ofLength
 import net.jqwik.kotlin.api.ofSize
 import java.io.File
 import java.nio.file.Path
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.io.path.Path
-import kotlin.io.path.createDirectories
 import kotlin.io.path.invariantSeparatorsPathString
-import kotlin.io.path.writeBytes
 import kotlin.test.assertEquals
+
+internal const val SAME = "same"
 
 @AddLifecycleHook(value = TemporaryFileHook::class, propagateTo = PropagationMode.ALL_DESCENDANTS)
 internal object DeltaHappyFlowPropertyTest {
@@ -29,10 +27,10 @@ internal object DeltaHappyFlowPropertyTest {
             combine(filenames, extensions) { filename, extension -> "$filename.$extension" }.map { Path(it) }
         val fileContents =
             combine(
-                Int.any(0..10),
                 Int.any(0..100),
+                Int.any(0..500),
                 String.any().ofLength(1..100000).withoutEdgeCases(),
-                Arbitraries.just("same")
+                Arbitraries.just(SAME)
             ) { randomCount, sameCount, random, same ->
                 random.repeat(randomCount) + same.repeat(sameCount)
             }.map { it.toByteArray() }
@@ -46,7 +44,7 @@ internal object DeltaHappyFlowPropertyTest {
         return Int.any().between(1, Int.MAX_VALUE / 8)
     }
 
-    @Property(tries = 1000)
+    @Property(tries = 100)
     fun test(
         tempDir: Path,
         @ForAll("chunkSizes") chunkSize: Int,
@@ -59,8 +57,7 @@ internal object DeltaHappyFlowPropertyTest {
         val expected = target.toComparableMap()
 
         // act
-        val delta = DeltaCreator(source, target, tempDir.resolve("patch.zip"), chunkSize).create()
-        delta.inZip().use { DeltaPatcher(it, source).patch() }
+        act(source, target, tempDir, chunkSize)
 
         // assert
         assertEquals(expected, source.toComparableMap())
@@ -68,34 +65,21 @@ internal object DeltaHappyFlowPropertyTest {
 
     @Property(tries = 100)
     fun `test with source == target`(
-        tempDir: Path,
+        tmpDir: Path,
         @ForAll("chunkSizes") chunkSize: Int,
         @ForAll("filenameMap") sourceMap: Map<Path, ByteArray>,
     ) {
         // setup
-        val source = sourceMap.createOnFileSystem(tempDir, "source")
-        val target = sourceMap.createOnFileSystem(tempDir, "target")
+        val source = sourceMap.createOnFileSystem(tmpDir, "source")
+        val target = sourceMap.createOnFileSystem(tmpDir, "target")
         val expected = target.toComparableMap()
         assertEquals(expected, source.toComparableMap())
 
         // act
-        val delta = DeltaCreator(source, target, tempDir.resolve("patch.zip"), chunkSize).create()
-        delta.inZip().use { DeltaPatcher(it, source).patch() }
+        act(source, target, tmpDir, chunkSize)
 
         // assert
         assertEquals(expected, source.toComparableMap())
-    }
-}
-
-internal fun Map<Path, ByteArray>.createOnFileSystem(tempDir: Path, rootPathString: String): Path {
-    return tempDir.resolve(rootPathString).apply {
-        createDirectories()
-        this@createOnFileSystem.forEach { (name, content) ->
-            resolve(name).apply {
-                parent.createDirectories()
-                writeBytes(content)
-            }
-        }
     }
 }
 

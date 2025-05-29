@@ -1,8 +1,9 @@
 package eu.pieland.delta
 
-import eu.pieland.delta.*
-import eu.pieland.delta.Checksums.Companion.computeChecksumsFromByteSource
+import eu.pieland.delta.DeltaCreatorHashes.Companion.computeHashesFromByteSource
 import eu.pieland.delta.IndexEntry.*
+import eu.pieland.delta.IndexEntry.Companion.Created
+import eu.pieland.delta.IndexEntry.Companion.Deleted
 import eu.pieland.delta.IndexEntry.Companion.UnchangedOrUpdated
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -19,48 +20,21 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.*
 
-private const val DEFAULT_CHUNK_SIZE = 16
-private const val DEFAULT_BLOCK_SIZE_MULTIPLIER = 4
 
-class DeltaCreator(
+internal class DeltaCreator @Suppress("LongParameterList") private constructor(
     private val source: Path,
     private val target: Path,
     private val patch: Path,
-    private val chunkSize: Int = DEFAULT_CHUNK_SIZE,
-    private val blockSize: Int = chunkSize * DEFAULT_BLOCK_SIZE_MULTIPLIER,
+    private val created: List<Created>,
+    private val deleted: List<Deleted>,
+    private val updated: List<Updated>,
+    private val unchanged: List<Unchanged>,
+    private val chunkSize: Int,
+    private val blockSize: Int,
 ) {
-    private val created: List<Created>
-    private val deleted: List<Deleted>
-    private val updated: List<Updated>
-    private val unchanged: List<Unchanged>
 
-    init {
-        require(source.exists() && source.isDirectory()) { "'source' must be an existing directory" }
-        require(target.exists() && target.isDirectory()) { "'target' must be an existing directory" }
-        require(patch.notExists()) { "'patch' must not exist, parent directories may exist" }
-        require(chunkSize > 0) { "'chunkSize' must be greater than 0" }
-        require(blockSize > chunkSize) { "'blockSize' must be greater than 'chunkSize', optimally a multiple of it" }
-
-        val sourceSet: Set<Path> = source.relativePaths()
-        val targetSet: Set<Path> = target.relativePaths()
-        val intersect = sourceSet.intersect(targetSet)
-        val (updated, unchanged) = intersect.map { UnchangedOrUpdated(it, source.resolve(it), target.resolve(it)) }
-            .partitionByType<Updated, Unchanged, UnchangedOrUpdated>()
-
-        created = targetSet.subtract(intersect).map { Created(it, resolvedPath = target.resolve(it)) }
-        deleted = sourceSet.subtract(intersect).map { Deleted(it, resolvedPath = source.resolve(it)) }
-        this.updated = updated
-        this.unchanged = unchanged
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    private fun Path.relativePaths(): Set<Path> =
-        walk().filter { it.isRegularFile() }.map { it.normalize().relativeTo(this) }.toSortedSet()
-
-    fun create(): Path {
-        return patch.apply { parent.createDirectories() }.outZip()
-            .use { patchOut -> patchOut.writeIndex().writeCreated().writeUpdated() }
-    }
+    fun create(): Path =
+        patch.apply { parent.createDirectories() }.writeZip { writeIndex().writeCreated().writeUpdated() }
 
     private fun ZipOutputStream.writeIndex(): ZipOutputStream {
         putNextEntry(ZipEntry(".index_" + UUID.randomUUID().toString()))
@@ -80,7 +54,7 @@ class DeltaCreator(
 
     private fun ZipOutputStream.writeCreated(): ZipOutputStream {
         created.forEach { createdEntry ->
-            putNextEntry(ZipEntry(createdEntry.pathString))
+            putNextEntry(ZipEntry(createdEntry.path))
             target.resolve(createdEntry.path).inputStream().buffered().use { it.copyTo(this) }
             closeEntry()
         }
@@ -89,7 +63,7 @@ class DeltaCreator(
 
     private fun ZipOutputStream.writeUpdated(): Path {
         updated.forEach { updatedEntry ->
-            putNextEntry(ZipEntry("${updatedEntry.pathString}.gdiff"))
+            putNextEntry(ZipEntry("${updatedEntry.path}.gdiff"))
             writeGDiff(updatedEntry)
             closeEntry()
         }
@@ -106,8 +80,63 @@ class DeltaCreator(
         }
     }
 
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun Path.outZip(): ZipOutputStream = ZipOutputStream(outputStream().buffered())
+    private inline fun Path.writeZip(use: ZipOutputStream.() -> Path): Path =
+        ZipOutputStream(outputStream().buffered()).use { it.use() }
+
+    companion object {
+        @JvmStatic
+        @Suppress("LongParameterList")
+        internal operator fun invoke(
+            source: Path,
+            target: Path,
+            patch: Path,
+            chunkSize: Int,
+            blockSize: Int,
+            pathFilter: (Path) -> Boolean,
+        ): DeltaCreator {
+            require(source.exists() && source.isDirectory()) { "'source' must be an existing directory" }
+            require(target.exists() && target.isDirectory()) { "'target' must be an existing directory" }
+            require(patch.notExists()) { "'patch' must not exist; parent directories may exist" }
+            require(chunkSize > 0) { "'chunkSize' must be greater than 0" }
+            require(blockSize > chunkSize) {
+                "'blockSize' must be greater than 'chunkSize', optimally a multiple of it"
+            }
+
+            val sourceSet = source.relativePaths(pathFilter)
+            val targetSet = target.relativePaths(pathFilter)
+
+            val intersect = sourceSet.intersect(targetSet)
+            val (updated, unchanged) = intersect.map { UnchangedOrUpdated(it, source.resolve(it), target.resolve(it)) }
+                .partitionByType<Updated, Unchanged, UnchangedOrUpdated>()
+
+            val created = targetSet.subtract(intersect).map { Created(it, target.resolve(it)) }
+            val deleted = sourceSet.subtract(intersect).map { Deleted(it, resolvedPath = source.resolve(it)) }
+
+            return DeltaCreator(
+                source = source,
+                target = target,
+                patch = patch,
+                created = created,
+                deleted = deleted,
+                updated = updated,
+                unchanged = unchanged,
+                chunkSize = chunkSize,
+                blockSize = blockSize,
+            )
+        }
+
+        private inline fun <reified F : T, reified S : T, T> Iterable<T>.partitionByType(): Pair<List<F>, List<S>> {
+            val first = ArrayList<F>()
+            val second = ArrayList<S>()
+            forEach { element -> if (element is F) first.add(element) else second.add(element as S) }
+            return Pair(first, second)
+        }
+
+        @OptIn(ExperimentalPathApi::class)
+        private fun Path.relativePaths(filter: (Path) -> Boolean): Set<Path> {
+            return walk().filter(filter).map { it.normalize().relativeTo(this) }.toSortedSet()
+        }
+    }
 }
 
 private class GDiffCreator(
@@ -119,9 +148,10 @@ private class GDiffCreator(
 ) {
     private val targetBuffer: ByteBuffer = ByteBuffer.allocate(blockSize).apply { limit(0) }
     private val sourceBuffer: ByteBuffer = ByteBuffer.allocate(blockSize)
-    private val sourceChecksums: Checksums = source.computeChecksumsFromByteSource(chunkSize)
-    private var targetChecksum: DeltaCreatorChecksum = DeltaCreatorChecksum()
-    private var needsChecksumUpdate = true
+    private val longestMatchFinder: LongestMatchFinder = LongestMatchFinder(source, target, targetBuffer, sourceBuffer)
+    private val sourceHashes: DeltaCreatorHashes = source.computeHashesFromByteSource(chunkSize)
+    private var targetHash: DeltaCreatorChecksum = DeltaCreatorChecksum()
+    private var needsHashUpdate = true
     private var eof = false
 
     fun create() {
@@ -129,8 +159,8 @@ private class GDiffCreator(
             val possibleChecksumPositionInSource = tryFindTargetChecksumInSourceChecksums()
             if (possibleChecksumPositionInSource >= 0) {
                 source.position(possibleChecksumPositionInSource)
-                needsChecksumUpdate = true
-                val matchLength = findLongestMatch()
+                val matchLength = longestMatchFinder.find { eof = true }
+                needsHashUpdate = matchLength > 0
                 if (matchLength >= chunkSize) {
                     output.addCopy(possibleChecksumPositionInSource, matchLength)
                 } else {
@@ -147,59 +177,69 @@ private class GDiffCreator(
         prepareAddData()
         if (eof) return
         val nextByte = targetBuffer.get()
-        tryIncrementChecksum(nextByte)
+       tryIncrementChecksum(nextByte)
         addData(nextByte)
     }
 
-    fun prepareAddData() {
+    private fun tryIncrementChecksum(it: Byte) {
+        if (targetBuffer.remaining() < chunkSize) return
+        targetHash = targetHash.increment(it, targetBuffer[targetBuffer.position() + chunkSize - 1], chunkSize)
+    }
+
+    private fun prepareAddData() {
         if (targetBuffer.remaining() > chunkSize) return
         target.fillBuffer(targetBuffer) { compact() }
         if (targetBuffer.hasRemaining()) return
         eof = true
     }
 
-    private fun tryIncrementChecksum(it: Byte) {
-        if (targetBuffer.remaining() < chunkSize) return
-        targetChecksum = targetChecksum.increment(it, targetBuffer[targetBuffer.position() + chunkSize - 1], chunkSize)
-    }
-
-    fun ByteBuffer.movePositionToStartOfMatch(matchLength: Int) {
+    private fun ByteBuffer.movePositionToStartOfMatch(matchLength: Int) {
         position(position() - matchLength)
     }
 
-    fun tryFindTargetChecksumInSourceChecksums(): Long {
+    private fun tryFindTargetChecksumInSourceChecksums(): Long {
         sourceBuffer.apply {
             clear()
             limit(0)
         }
-        if (needsChecksumUpdate) {
+        if (needsHashUpdate) {
             while (targetBuffer.remaining() < chunkSize) {
                 val read = target.fillBuffer(targetBuffer) { compact() }
                 if (read == -1) return -1
             }
-            targetChecksum = targetBuffer.computeChecksum(chunkSize)
-            needsChecksumUpdate = false
+            targetHash = targetBuffer.computeHash(chunkSize)
+            needsHashUpdate = false
         }
-        return sourceChecksums.indexOf(targetChecksum).toLong() * chunkSize
+        return sourceHashes.indexOf(targetHash)
     }
+}
 
-    fun findLongestMatch(): Int {
+internal class LongestMatchFinder(
+    private val source: SeekableByteChannel,
+    private val target: ReadableByteChannel,
+    private val targetBuffer: ByteBuffer,
+    private val sourceBuffer: ByteBuffer,
+) {
+    inline fun find(reachedEof: () -> Unit): Int {
         var matchLength = 0
-        while (ensureSourceBufferReadable() && ensureTargetBufferReadable() && isMatching()) {
+        while (ensureBuffersReadable(reachedEof) && isMatching() && matchLength < Int.MAX_VALUE) {
             matchLength++
         }
         return matchLength
     }
+
+    private inline fun ensureBuffersReadable(reachedEof: () -> Unit): Boolean =
+        ensureSourceBufferReadable() && ensureTargetBufferReadable(reachedEof)
 
     private fun ensureSourceBufferReadable(): Boolean {
         if (sourceBuffer.hasRemaining()) return true
         return source.fillBuffer(sourceBuffer) { clear() } != -1
     }
 
-    private fun ensureTargetBufferReadable(): Boolean {
+    private inline fun ensureTargetBufferReadable(reachedEof: () -> Unit): Boolean {
         if (targetBuffer.hasRemaining()) return true
         target.fillBuffer(targetBuffer) { compact() }
-        return targetBuffer.hasRemaining().also { if (!it) eof = true }
+        return targetBuffer.hasRemaining().also { if (!it) reachedEof() }
     }
 
     private fun isMatching(): Boolean {
@@ -246,44 +286,45 @@ private class GDiffWriter private constructor(private val output: DataOutputStre
                 output.writeInt(length)
             }
 
-            offset <= DATA_SHORT_MAX -> {
+            offset > DATA_SHORT_MAX -> {
                 when {
-                    length < DATA_BYTE_MAX -> {
-                        output.writeByte(COPY_USHORT_UBYTE)
-                        output.writeShort(offset.toInt())
-                        output.writeByte(length)
-                    }
-
                     length > DATA_SHORT_MAX -> {
-                        output.writeByte(COPY_USHORT_INT)
-                        output.writeShort(offset.toInt())
+                        output.writeByte(COPY_INT_INT)
+                        output.writeInt(offset.toInt())
                         output.writeInt(length)
                     }
 
-                    else -> {
-                        output.writeByte(COPY_USHORT_USHORT)
-                        output.writeShort(offset.toInt())
+                    length > DATA_BYTE_MAX -> {
+                        output.writeByte(COPY_INT_USHORT)
+                        output.writeInt(offset.toInt())
                         output.writeShort(length)
                     }
+
+                    else -> {
+                        output.writeByte(COPY_INT_UBYTE)
+                        output.writeInt(offset.toInt())
+                        output.writeByte(length)
+                    }
+
                 }
             }
 
-            length < DATA_BYTE_MAX -> {
-                output.writeByte(COPY_INT_UBYTE)
-                output.writeInt(offset.toInt())
-                output.writeByte(length)
-            }
-
             length > DATA_SHORT_MAX -> {
-                output.writeByte(COPY_INT_INT)
-                output.writeInt(offset.toInt())
+                output.writeByte(COPY_USHORT_INT)
+                output.writeShort(offset.toInt())
                 output.writeInt(length)
             }
 
-            else -> {
-                output.writeByte(COPY_INT_USHORT)
-                output.writeInt(offset.toInt())
+            length > DATA_BYTE_MAX -> {
+                output.writeByte(COPY_USHORT_USHORT)
+                output.writeShort(offset.toInt())
                 output.writeShort(length)
+            }
+
+            else -> {
+                output.writeByte(COPY_USHORT_UBYTE)
+                output.writeShort(offset.toInt())
+                output.writeByte(length)
             }
         }
     }
@@ -291,7 +332,7 @@ private class GDiffWriter private constructor(private val output: DataOutputStre
     @Throws(IOException::class)
     fun addData(b: Byte) {
         buffer.write(b.toInt())
-        if (buffer.size() >= Short.MAX_VALUE.toInt()) addDataFromBuffer()
+        if (buffer.size() > DATA_SHORT_MAX) addDataFromBuffer()
     }
 
     @Throws(IOException::class)

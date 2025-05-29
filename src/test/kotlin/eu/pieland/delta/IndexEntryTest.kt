@@ -2,7 +2,6 @@ package eu.pieland.delta
 
 import eu.pieland.delta.HashAlgorithm.CRC32
 import eu.pieland.delta.HashAlgorithm.SHA_1
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertAll
@@ -10,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
+import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.io.path.toPath
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
@@ -40,7 +40,7 @@ private fun created(alg: HashAlgorithm, newHash: String): List<String> {
 
 private fun createdConstructors(hashAlgorithm: HashAlgorithm, newHash: String) = listOf(
     { IndexEntry.Created(fileName, pathA, hashAlgorithm) },
-    { IndexEntry.Created(fileName, hashAlgorithm, newHash = newHash) },
+    { IndexEntry.Created(fileName.invariantSeparatorsPathString, hashAlgorithm, newHash = newHash) },
 )
 
 private fun deleted(alg: HashAlgorithm, oldHash: String): List<String> {
@@ -59,7 +59,7 @@ private fun deleted(alg: HashAlgorithm, oldHash: String): List<String> {
 
 private fun deletedConstructors(hashAlgorithm: HashAlgorithm, newHash: String) = listOf(
     { IndexEntry.Deleted(fileName, pathA, hashAlgorithm) },
-    { IndexEntry.Deleted(fileName, hashAlgorithm, oldHash = newHash) },
+    { IndexEntry.Deleted(fileName.invariantSeparatorsPathString, hashAlgorithm, oldHash = newHash) },
 )
 
 private fun updated(alg: HashAlgorithm, oldHash: String, newHash: String): List<String> {
@@ -76,7 +76,7 @@ private fun updated(alg: HashAlgorithm, oldHash: String, newHash: String): List<
 }
 
 private fun updatedConstructors(hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String) = listOf(
-    { IndexEntry.Updated(fileName, hashAlgorithm, oldHash, newHash) },
+    { IndexEntry.Updated(fileName.invariantSeparatorsPathString, hashAlgorithm, oldHash, newHash) },
     { IndexEntry.UnchangedOrUpdated(fileName, pathA, pathB, hashAlgorithm) },
 )
 
@@ -94,7 +94,7 @@ private fun unchanged(alg: HashAlgorithm, hash: String): List<String> {
 }
 
 private fun unchangedConstructors(hashAlgorithm: HashAlgorithm, hash: String) = listOf(
-    { IndexEntry.Unchanged(fileName, hashAlgorithm, hash) },
+    { IndexEntry.Unchanged(fileName.invariantSeparatorsPathString, hashAlgorithm, hash) },
     { IndexEntry.UnchangedOrUpdated(fileName, pathA, pathA, hashAlgorithm) },
 )
 
@@ -108,7 +108,7 @@ private val PATH_B_HASHES = mapOf(Pair(SHA_1, SHA_1_PATH_B), Pair(CRC32, CRC32_P
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class IndexEntryTest {
 
-    private fun equalIndexEntries(): List<Arguments> {
+     fun equalIndexEntries(): List<Arguments> {
         return PATH_A_HASH_PAIRS.flatMap { pair ->
             val alg = pair.first
             val hashA = pair.second

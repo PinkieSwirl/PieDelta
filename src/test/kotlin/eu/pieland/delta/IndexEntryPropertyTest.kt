@@ -3,7 +3,6 @@ package eu.pieland.delta
 import eu.pieland.delta.HashAlgorithm.SHA_1
 import eu.pieland.delta.IndexEntry.*
 import eu.pieland.delta.IndexEntry.State.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.jqwik.api.*
 import net.jqwik.api.Tuple.Tuple2
@@ -11,7 +10,6 @@ import net.jqwik.kotlin.api.any
 import net.jqwik.kotlin.api.combine
 import net.jqwik.kotlin.api.orNull
 import org.junit.jupiter.api.assertAll
-import kotlin.io.path.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
@@ -24,11 +22,11 @@ internal class IndexEntryPropertyTest {
         val string = String.any()
         val path = string.alpha()
         return Enum.any<State>().flatMap {
-            when (it!!) {
-                UNCHANGED -> combine(path, string) { v1, v2 -> Unchanged(Path(v1), SHA_1, v2) }
-                CREATED -> combine(path, string, string) { v1, v2, v3 -> Created(Path(v1), SHA_1, v2, v3) }
-                UPDATED -> combine(path, string, string) { v1, v2, v3 -> Updated(Path(v1), SHA_1, v2, v3) }
-                DELETED -> combine(path, string, string) { v1, v2, v3 -> Deleted(Path(v1), SHA_1, v2, v3) }
+            when (it) {
+                UNCHANGED -> combine(path, string) { v1, v2 -> Unchanged(v1, SHA_1, v2) }
+                CREATED -> combine(path, string) { v1, v2 -> Created(v1, SHA_1, v2) }
+                UPDATED -> combine(path, string, string) { v1, v2, v3 -> Updated(v1, SHA_1, v2, v3) }
+                DELETED -> combine(path, string) { v1, v2 -> Deleted(v1, SHA_1, v2) }
             }
         }
     }
@@ -58,14 +56,14 @@ internal class IndexEntryPropertyTest {
 
     @Property
     fun `two different IndexEntry Instances are not equal`(
-        @ForAll("indexEntries") entries: Tuple2<IndexEntry, IndexEntry>
+        @ForAll("indexEntries") entries: Tuple2<IndexEntry, IndexEntry>,
     ) {
         assertEntriesNotEquals(entries.get1(), entries.get2())
     }
 
     @Property
     fun `IndexEntry and Any are not equal`(
-        @ForAll("indexEntry") entry1: IndexEntry, @ForAll("anyNullableString") entry2: Any?
+        @ForAll("indexEntry") entry1: IndexEntry, @ForAll("anyNullableString") entry2: Any?,
     ) {
         assertEntriesNotEquals(entry1, entry2)
     }
