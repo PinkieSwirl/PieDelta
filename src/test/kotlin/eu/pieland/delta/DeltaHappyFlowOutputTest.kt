@@ -55,7 +55,12 @@ internal class DeltaHappyFlowOutputTest {
 12345,aaaaK, NdJve, 5
 12345,aaaaK, 7tTtM, 5"""
     )
-    fun `test DeltaCreator#addData with collisions`(repeated: String, sourceUnique: String, targetUnique: String, chunkSize: Int) {
+    fun `test DeltaCreator#addData with collisions`(
+        repeated: String,
+        sourceUnique: String,
+        targetUnique: String,
+        chunkSize: Int,
+    ) {
         // setup
         source.resolve(".txt").newBufferedWriter().use { writer ->
             writer.append(repeated)

@@ -21,7 +21,9 @@ fun act(source: Path, target: Path, rootPath: Path) {
 @OptIn(ExperimentalPathApi::class)
 internal fun Path.toComparableMap(): TreeMap<Path, String> {
     return TreeMap(walk(PathWalkOption.INCLUDE_DIRECTORIES).map { childPath ->
-        childPath.relativeTo(this) to if (childPath.isRegularFile()) with(HashAlgorithm.SHA_1) { childPath.computeHash() }
+        childPath.relativeTo(this) to if (childPath.isRegularFile()) with(HashAlgorithm.SHA_1) {
+            childPath.computeHash()
+        }
         else childPath.relativeTo(this).invariantSeparatorsPathString.lowercase(Locale.ENGLISH)
     }.toMap())
 }
@@ -51,9 +53,6 @@ internal fun unpackZip(javaClass: Class<*>, pathString: String, path: Path) {
     }
 }
 
-internal fun Path.newBufferedWriter(): BufferedWriter =
-    Files.newBufferedWriter(
-        createParentDirectories(),
-        StandardOpenOption.CREATE,
-        StandardOpenOption.TRUNCATE_EXISTING
-    )
+internal fun Path.newBufferedWriter(): BufferedWriter = Files.newBufferedWriter(
+    createParentDirectories(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING
+)
