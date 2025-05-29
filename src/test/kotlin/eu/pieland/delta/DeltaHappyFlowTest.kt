@@ -11,9 +11,11 @@ import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
-import java.util.*
 import java.util.zip.ZipInputStream
-import kotlin.io.path.*
+import kotlin.io.path.createDirectories
+import kotlin.io.path.inputStream
+import kotlin.io.path.writeBytes
+import kotlin.io.path.writeText
 import kotlin.test.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -41,14 +43,13 @@ internal class DeltaHappyFlowTest {
         assertNotEquals(expected, source.toComparableMap())
 
         // act
-        val delta = DeltaCreator(source, target, tmpdir.resolve("patch.zip")).create()
-        delta.inZip().use { DeltaPatcher(it, source).patch() }
+        act(source, target, tmpdir)
 
         // assert
         assertEquals(expected, source.toComparableMap())
     }
 
-    private fun `slow round-trip single file update success arguments`(): Iterator<Arguments> {
+     fun `slow round-trip single file update success arguments`(): Iterator<Arguments> {
         val repeats = sequenceOf(2, 100, 10_000, 1_000_000, 2_000_000, 10_000_000)
         val chunkSizes = sequenceOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 128, 512, 1024, 10_000, 100_000)
         return repeats.flatMap { repeat ->
@@ -62,7 +63,7 @@ internal class DeltaHappyFlowTest {
         }.iterator()
     }
 
-    private fun `fast round-trip single file update success arguments`(): Iterator<Arguments> {
+     fun `fast round-trip single file update success arguments`(): Iterator<Arguments> {
         val repeats = sequenceOf(2, 100, 10_000, 500_000)
         val chunkSizes = sequenceOf(1, 10, 16, 32, 512, 10_000)
         return repeats.flatMap { repeat ->
@@ -89,7 +90,7 @@ internal class DeltaHappyFlowTest {
         `round-trip single file update success`(repeated, chunkSize)
     }
 
-    private fun `round-trip single file update success`(repeated: Int, chunkSize: Int) {
+     fun `round-trip single file update success`(repeated: Int, chunkSize: Int) {
         // setup
         val source = tmpdir.resolve("source").apply {
             createDirectories()
@@ -113,8 +114,7 @@ internal class DeltaHappyFlowTest {
         assertNotEquals(expected, source.toComparableMap())
 
         // act
-        val delta = DeltaCreator(source, target, tmpdir.resolve("patch.zip"), chunkSize = chunkSize).create()
-        delta.inZip().use { DeltaPatcher(it, source).patch() }
+        act(source, target, tmpdir, chunkSize)
 
         // assert
         assertEquals(expected, source.toComparableMap())
@@ -165,7 +165,7 @@ internal class DeltaHappyFlowTest {
             tmpdir.resolve("diff.zip").also { it.writeBytes(javaClass.getResource("/diff.zip")!!.readBytes()) }
 
         // act
-        val patch = DeltaCreator(source, target, tmpdir.resolve("patch.zip")).create()
+        val patch = Delta.create(source, target, tmpdir.resolve("patch.zip"))
 
         // assert
         comparePathToZips(expected, patch)
@@ -206,18 +206,4 @@ internal class DeltaHappyFlowTest {
         }
     }
 
-}
-
-@OptIn(ExperimentalPathApi::class)
-internal fun Path.toComparableMap(): TreeMap<Path, String> {
-    return TreeMap(walk(PathWalkOption.INCLUDE_DIRECTORIES).map { childPath ->
-        childPath.relativeTo(this) to
-                if (childPath.isRegularFile()) with(HashAlgorithm.SHA_1) { childPath.computeHash() }
-                else childPath.relativeTo(this).invariantSeparatorsPathString.lowercase(Locale.ENGLISH)
-    }.toMap())
-}
-
-@Suppress("NOTHING_TO_INLINE")
-internal inline fun Path.inZip(): ZipInputStream {
-    return ZipInputStream(inputStream().buffered())
 }

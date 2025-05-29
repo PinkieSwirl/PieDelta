@@ -17,14 +17,14 @@ internal class DeltaCreatorErrorFlowTest {
     private val existingDir = Path("src")
     private val nonExistingPath = Path("~")
 
-    private fun invalidConfigurations(): List<Arguments> {
+    fun invalidConfigurations(): List<Arguments> {
         return listOf(
             arguments({ deltaCreator(source = existingFile) }, "'source' must be an existing directory"),
             arguments({ deltaCreator(source = nonExistingPath) }, "'source' must be an existing directory"),
             arguments({ deltaCreator(target = existingFile) }, "'target' must be an existing directory"),
             arguments({ deltaCreator(target = nonExistingPath) }, "'target' must be an existing directory"),
-            arguments({ deltaCreator(patch = existingDir) }, "'patch' must not exist, parent directories may exist"),
-            arguments({ deltaCreator(patch = existingFile) }, "'patch' must not exist, parent directories may exist"),
+            arguments({ deltaCreator(patch = existingDir) }, "'patch' must not exist; parent directories may exist"),
+            arguments({ deltaCreator(patch = existingFile) }, "'patch' must not exist; parent directories may exist"),
             arguments({ deltaCreator(chunkSize = -1) }, "'chunkSize' must be greater than 0"),
             arguments(
                 { deltaCreator(blockSize = 7) },
@@ -38,8 +38,8 @@ internal class DeltaCreatorErrorFlowTest {
         target: Path = existingDir,
         patch: Path = nonExistingPath,
         chunkSize: Int = 8,
-        blockSize: Int = 2 * chunkSize
-    ) = DeltaCreator(source, target, patch, chunkSize, blockSize)
+        blockSize: Int = 2 * chunkSize,
+    ) = Delta.create(source, target, patch, chunkSize, blockSize)
 
 
     @ParameterizedTest

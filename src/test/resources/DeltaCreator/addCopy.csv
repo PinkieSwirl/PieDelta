@@ -1,0 +1,23 @@
+LENGTH,OFFSET,CHUNK,UNIQUE_DATA,TEXT
+1,0,1,1,offset loe DATA_SHORT_MAX && length lt DATA_BYTE_MAX && data lt DATA_MAX
+1,1,1,1,offset loe DATA_SHORT_MAX && length lt DATA_BYTE_MAX && data lt DATA_MAX
+1,1,1,65535,offset loe DATA_SHORT_MAX && length lt DATA_BYTE_MAX && data goe DATA_MAX && data lt DATA_SHORT_MAX
+1,1,1,65536,offset loe DATA_SHORT_MAX && length lt DATA_BYTE_MAX && data goe DATA_MAX && data lt DATA_SHORT_MAX
+256,0,1,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+256,0,4,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+256,1,1,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65535,0,1,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65535,0,4,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65535,1,1,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65535,1,4,1,offset loe DATA_SHORT_MAX && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65536,0,1,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+65536,0,16,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+65536,0,32,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+65536,1,1,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+65536,16,16,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+65536,32,32,1,offset loe DATA_SHORT_MAX && length gt DATA_SHORT_MAX && data lt DATA_MAX
+1,65536,1,1,offset gt DATA_SHORT_MAX && offset loe Int.MAX_VALUE && length lt DATA_BYTE_MAX && data lt DATA_MAX
+255,65536,1,1,offset gt DATA_SHORT_MAX && offset loe Int.MAX_VALUE && length lt DATA_BYTE_MAX && data lt DATA_MAX
+256,65536,1,1,offset gt DATA_SHORT_MAX && offset loe Int.MAX_VALUE && length goe DATA_BYTE_MAX && length loe DATA_SHORT_MAX && data lt DATA_MAX
+65536,65536,1,1,offset gt DATA_SHORT_MAX && offset loe Int.MAX_VALUE && length gt DATA_SHORT_MAX && data lt DATA_MAX
+256,2147483648,16,1,offset gt Int.MAX_VALUE && data lt DATA_MAX

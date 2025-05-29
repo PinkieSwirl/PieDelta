@@ -14,56 +14,55 @@ import java.io.InputStream
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.zip.CRC32
-import kotlin.io.path.Path
 import kotlin.io.path.inputStream
 import kotlin.io.path.invariantSeparatorsPathString
 
 @Serializable(with = IndexEntrySerializer::class)
 internal sealed class IndexEntry(
-    val path: Path,
+    val state: State,
+    val path: String,
+    val hashAlgorithm: HashAlgorithm,
     val oldHash: String,
     val newHash: String,
-    internal val state: State,
-    internal val hashAlgorithm: HashAlgorithm,
 ) {
-    val pathString: String = path.invariantSeparatorsPathString
 
     enum class State {
         UNCHANGED, CREATED, UPDATED, DELETED
     }
 
-    class Created(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String = "", newHash: String) :
-        IndexEntry(path, oldHash, newHash, CREATED, hashAlgorithm) {
-        constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
-            path,
-            hashAlgorithm,
-            newHash = with(hashAlgorithm) { resolvedPath.computeHash() })
-    }
+    class Created(path: String, hashAlgorithm: HashAlgorithm, newHash: String) :
+        IndexEntry(CREATED, path, hashAlgorithm, "", newHash)
 
-    class Deleted(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String = "") :
-        IndexEntry(path, oldHash, newHash, DELETED, hashAlgorithm) {
-        constructor(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) : this(
-            path,
-            hashAlgorithm,
-            oldHash = with(hashAlgorithm) { resolvedPath.computeHash() })
-    }
+    class Deleted(path: String, hashAlgorithm: HashAlgorithm, oldHash: String) :
+        IndexEntry(DELETED, path, hashAlgorithm, oldHash, "")
 
     sealed class UnchangedOrUpdated(
-        path: Path,
+        path: String,
         hashAlgorithm: HashAlgorithm,
         oldHash: String,
         newHash: String,
         state: State,
-    ) :
-        IndexEntry(path, oldHash, newHash, state, hashAlgorithm)
+    ) : IndexEntry(state, path, hashAlgorithm, oldHash, newHash)
 
-    class Updated(path: Path, hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String) :
+    class Updated(path: String, hashAlgorithm: HashAlgorithm, oldHash: String, newHash: String) :
         UnchangedOrUpdated(path, hashAlgorithm, oldHash, newHash, UPDATED)
 
-    class Unchanged(path: Path, hashAlgorithm: HashAlgorithm, hash: String) :
+    class Unchanged(path: String, hashAlgorithm: HashAlgorithm, hash: String) :
         UnchangedOrUpdated(path, hashAlgorithm, hash, hash, UNCHANGED)
 
     companion object {
+        fun Created(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) =
+            Created(path.invariantSeparatorsPathString, resolvedPath, hashAlgorithm)
+
+        private fun Created(path: String, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) =
+            Created(path, hashAlgorithm, with(hashAlgorithm) { resolvedPath.computeHash() })
+
+        fun Deleted(path: Path, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) =
+            Deleted(path.invariantSeparatorsPathString, resolvedPath, hashAlgorithm)
+
+        private fun Deleted(path: String, resolvedPath: Path, hashAlgorithm: HashAlgorithm = HashAlgorithm.SHA_1) =
+            Deleted(path, hashAlgorithm, with(hashAlgorithm) { resolvedPath.computeHash() })
+
         fun UnchangedOrUpdated(
             path: Path,
             resolvedOldPath: Path,
@@ -72,8 +71,8 @@ internal sealed class IndexEntry(
         ): UnchangedOrUpdated {
             val oldHash = with(hashAlgorithm) { resolvedOldPath.computeHash() }
             val newHash = with(hashAlgorithm) { resolvedNewPath.computeHash() }
-            return if (oldHash == newHash) Unchanged(path, hashAlgorithm, oldHash)
-            else Updated(path, hashAlgorithm, oldHash, newHash)
+            return if (oldHash == newHash) Unchanged(path.invariantSeparatorsPathString, hashAlgorithm, oldHash)
+            else Updated(path.invariantSeparatorsPathString, hashAlgorithm, oldHash, newHash)
         }
     }
 
@@ -92,12 +91,14 @@ internal sealed class IndexEntry(
     }
 
     override fun hashCode(): Int {
-        var result = path.hashCode()
+        var result = hashAlgorithm.hashCode()
+        result = 31 * result + path.hashCode()
         result = 31 * result + oldHash.hashCode()
         result = 31 * result + newHash.hashCode()
-        result = 31 * result + state.hashCode()
         return result
     }
+
+
 }
 
 enum class HashAlgorithm {
@@ -119,7 +120,7 @@ enum class HashAlgorithm {
     },
     ;
 
-    protected inline fun InputStream.useAll(
+    internal inline fun InputStream.useAll(
         bufferSize: Int = DEFAULT_BUFFER_SIZE,
         write: (ByteArray, Int, Int) -> Unit,
     ) {
@@ -151,18 +152,17 @@ internal object IndexEntrySerializer : KSerializer<IndexEntry> {
     override val descriptor: SerialDescriptor = IndexEntrySurrogate.serializer().descriptor
 
     override fun serialize(encoder: Encoder, value: IndexEntry) {
-        val surrogate =
-            IndexEntrySurrogate(value.state, value.pathString, value.hashAlgorithm, value.oldHash, value.newHash)
+        val surrogate = IndexEntrySurrogate(value.state, value.path, value.hashAlgorithm, value.oldHash, value.newHash)
         encoder.encodeSerializableValue(IndexEntrySurrogate.serializer(), surrogate)
     }
 
     override fun deserialize(decoder: Decoder): IndexEntry {
         val surrogate = decoder.decodeSerializableValue(IndexEntrySurrogate.serializer())
         return when (surrogate.state) {
-            UNCHANGED -> Unchanged(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash)
-            CREATED -> Created(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
-            UPDATED -> Updated(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
-            DELETED -> Deleted(Path(surrogate.path), surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
+            UNCHANGED -> Unchanged(surrogate.path, surrogate.hashAlgorithm, surrogate.oldHash)
+            CREATED -> Created(surrogate.path, surrogate.hashAlgorithm, surrogate.newHash)
+            UPDATED -> Updated(surrogate.path, surrogate.hashAlgorithm, surrogate.oldHash, surrogate.newHash)
+            DELETED -> Deleted(surrogate.path, surrogate.hashAlgorithm, surrogate.oldHash)
         }
     }
 }

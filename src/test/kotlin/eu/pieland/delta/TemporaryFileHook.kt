@@ -29,7 +29,7 @@ internal class TemporaryFileHook : ResolveParameterHook {
         override fun close() {
             try {
                 file.deleteRecursively()
-            } catch (@Suppress("SwallowedException") e: IOException) {
+            } catch (@Suppress("SwallowedException") _: IOException) {
                 // NOP, since we don't care for not deleted temporary files
             }
         }

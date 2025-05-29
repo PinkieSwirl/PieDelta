@@ -13,6 +13,7 @@ val kotlinSerializationVersion: String by project
 // test
 val junitVersion: String by project
 val jqwikVersion: String by project
+val jimfsVersion: String by project
 // quality
 val jacocoVersion: String by project
 val detektVersion: String by project
@@ -39,6 +40,7 @@ dependencies {
 
     testImplementation("net.jqwik:jqwik-api:$jqwikVersion")
     testImplementation("net.jqwik:jqwik-kotlin:$jqwikVersion")
+    testImplementation("com.google.jimfs:jimfs:$jimfsVersion")
 }
 
 tasks.test {

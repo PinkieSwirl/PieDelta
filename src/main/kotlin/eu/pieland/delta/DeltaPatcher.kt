@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream
 import kotlin.io.path.*
 import kotlin.math.min
 
-class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Path) {
+internal class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Path) {
     private val created: List<Created>
     private val deleted: List<Deleted>
     private val updated: List<Updated>
@@ -65,7 +65,7 @@ class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Pat
     private fun List<Created>.create() {
         forEach { createdEntry ->
             val entry = checkNotNull(zipPatch.nextEntry)
-            check(createdEntry.path.invariantSeparatorsPathString == entry.name) {
+            check(createdEntry.path == entry.name) {
                 "Index and zip-stream un-synchronized, index: ${createdEntry.path}, zip-stream: ${entry.name}"
             }
             val path = target.resolve(createdEntry.path)
@@ -80,7 +80,7 @@ class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Pat
     private fun List<Updated>.update() {
         forEach { updatedEntry ->
             val zipEntry = checkNotNull(zipPatch.nextEntry)
-            check(updatedEntry.path.invariantSeparatorsPathString + ".gdiff" == zipEntry.name) {
+            check(updatedEntry.path + ".gdiff" == zipEntry.name) {
                 "Index and zip-stream un-synchronized, index: ${updatedEntry.path}, zip-stream: ${zipEntry.name}"
             }
 
@@ -90,7 +90,7 @@ class DeltaPatcher(private val zipPatch: ZipInputStream, private val target: Pat
                 "UPDATED file-check failed for old file: ${path.relativeTo(target)}"
             }
 
-            val patched = target.resolve(updatedEntry.path.invariantSeparatorsPathString + UUID.randomUUID().toString())
+            val patched = target.resolve(updatedEntry.path + UUID.randomUUID().toString())
             patch(path, patched)
             check(with(updatedEntry.hashAlgorithm) { patched.computeHash() } == updatedEntry.newHash) {
                 "UPDATED file check failed for new file: $patched"
@@ -137,7 +137,7 @@ private class GDiffPatcher private constructor(
     private val source: SeekableByteChannel,
     private val patchedOut: DataOutputStream,
     private val deltaIn: DataInputStream,
-    val bufferSize: Int = 1024
+    val bufferSize: Int = 1024,
 ) {
     constructor(source: SeekableByteChannel, patchedOut: OutputStream, deltaIn: InputStream) : this(
         source,
