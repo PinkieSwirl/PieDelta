@@ -160,7 +160,6 @@ private class GDiffPatcher private constructor(
         ) { "Unexpected magic bytes or version" }
     }
 
-    @Throws(IOException::class)
     fun patch() {
         var command = deltaIn.readUnsignedByte()
         while (command != EOF.toInt()) {
@@ -186,7 +185,6 @@ private class GDiffPatcher private constructor(
     @Suppress("NOTHING_TO_INLINE")
     private inline fun DataInputStream.readIntOffset() = readInt().toLong()
 
-    @Throws(IOException::class)
     private fun append(length: Int) {
         var remainingLength = length
         while (remainingLength > 0) {
@@ -197,7 +195,6 @@ private class GDiffPatcher private constructor(
         }
     }
 
-    @Throws(IOException::class)
     private fun copy(offset: Long, length: Int) {
         source.position(offset)
         var remainingLength = length

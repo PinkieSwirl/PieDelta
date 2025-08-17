@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
 import static eu.pieland.delta.DeltaTest.*;
@@ -22,7 +23,7 @@ public class JavaApiTest {
 
     @ParameterizedTest
     @CsvSource(value = {"delta-diff-1.1.jar, delta-diff-1.1.3.jar"})
-    void roundTripSuccessfully(String sourcePathString, String targetPathString) throws IOException {
+    void roundTripSuccessfully(String sourcePathString, String targetPathString) throws IOException, NoSuchAlgorithmException {
         // setup
         Path source = createDirectories(tmpdir.resolve("source"));
         unpackZip(JavaApiTest.class, sourcePathString, source);
