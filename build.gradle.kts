@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
-    //id("com.autonomousapps.dependency-analysis")
+//    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     jacoco
 }
@@ -34,7 +34,6 @@ dependencies {
     testImplementation(kotlin("test:$kotlinVersion"))
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
-    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
 
@@ -70,11 +69,9 @@ kotlin {
 }
 
 //dependencyAnalysis {
-//    issues {
-//        all {
-//            onAny {
-//                exclude("org.jetbrains.kotlin:kotlin-test")
-//            }
+//    usage {
+//        analysis {
+//            checkSuperClasses(true) // false by default
 //        }
 //    }
 //}

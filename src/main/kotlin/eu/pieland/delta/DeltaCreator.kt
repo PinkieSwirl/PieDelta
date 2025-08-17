@@ -10,7 +10,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.SeekableByteChannel
@@ -177,7 +176,7 @@ private class GDiffCreator(
         prepareAddData()
         if (eof) return
         val nextByte = targetBuffer.get()
-       tryIncrementChecksum(nextByte)
+        tryIncrementChecksum(nextByte)
         addData(nextByte)
     }
 
@@ -275,7 +274,6 @@ private class GDiffWriter private constructor(private val output: DataOutputStre
         output.writeByte(0x04)
     }
 
-    @Throws(IOException::class)
     fun addCopy(offset: Long, length: Int) {
         addDataFromBuffer()
 
@@ -329,13 +327,11 @@ private class GDiffWriter private constructor(private val output: DataOutputStre
         }
     }
 
-    @Throws(IOException::class)
     fun addData(b: Byte) {
         buffer.write(b.toInt())
         if (buffer.size() > DATA_SHORT_MAX) addDataFromBuffer()
     }
 
-    @Throws(IOException::class)
     fun flush() {
         addDataFromBuffer()
         output.flush()
@@ -361,7 +357,6 @@ private class GDiffWriter private constructor(private val output: DataOutputStre
         }
     }
 
-    @Throws(IOException::class)
     override fun close() {
         flush()
         output.write(EOF.toInt())
