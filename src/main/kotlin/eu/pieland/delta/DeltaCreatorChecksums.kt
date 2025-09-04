@@ -17,7 +17,7 @@ internal class DeltaCreatorHashes(initialSize: Int = 256, private val loadFactor
 
     init {
         require(loadFactor > 0f && loadFactor < 1f) { "'loadFactor' must be > 0 and < 1: $loadFactor" }
-        require(initialSize <= MAX_TABLE_SIZE && initialSize > 0 && ((initialSize and (initialSize - 1)) == 0)) {
+        require(initialSize in 1..MAX_TABLE_SIZE && ((initialSize and (initialSize - 1)) == 0)) {
             "'initialCapacity' must be a power of 2 > 0 and <= $MAX_TABLE_SIZE: $initialSize"
         }
     }
