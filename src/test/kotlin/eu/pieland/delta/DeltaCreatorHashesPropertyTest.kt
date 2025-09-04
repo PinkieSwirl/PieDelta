@@ -1,9 +1,6 @@
 package eu.pieland.delta
 
-import net.jqwik.api.Arbitrary
-import net.jqwik.api.ForAll
-import net.jqwik.api.Property
-import net.jqwik.api.Provide
+import net.jqwik.api.*
 import net.jqwik.api.arbitraries.FloatArbitrary
 import net.jqwik.kotlin.api.any
 import org.junit.jupiter.api.assertThrows
@@ -21,13 +18,22 @@ internal class DeltaCreatorHashesPropertyTest {
     fun invalidLoadFactor(): Arbitrary<Float> = Float.any().filter { it <= 0f || it >= 1f }
 
     @Provide
-    fun powerOfTwo(): Arbitrary<Int> = Int.any(0..29).map { 1 shl it }
+    fun powerOfTwo(): Arbitrary<Int> = Int.any(0..10).map { 1 shl it }
+
+    @Provide
+    fun allPowerOfTwo(): Arbitrary<Int> = Int.any(0..29).map { 1 shl it }
 
     @Provide
     fun notPowerOfTwo(): Arbitrary<Int> = Int.any().filter { it !in powerOfTwos }
 
     @Property
-    fun `valid initialization`(@ForAll("powerOfTwo") initialSize: Int, @ForAll("loadFactor") loadFactor: Float) {
+    @Tag("slow")
+    fun `valid initialization`(@ForAll("allPowerOfTwo") initialSize: Int, @ForAll("loadFactor") loadFactor: Float) {
+        DeltaCreatorHashes(initialSize = initialSize, loadFactor = loadFactor)
+    }
+
+    @Property
+    fun `valid small initialization`(@ForAll("powerOfTwo") initialSize: Int, @ForAll("loadFactor") loadFactor: Float) {
         DeltaCreatorHashes(initialSize = initialSize, loadFactor = loadFactor)
     }
 
