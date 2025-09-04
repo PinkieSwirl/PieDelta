@@ -4,13 +4,13 @@ package eu.pieland.delta
 import java.nio.ByteBuffer
 import java.nio.channels.SeekableByteChannel
 
-private const val MAX_TABLE_SIZE = 1 shl 30
+private const val MAX_TABLE_SIZE = 1 shl 29
 
 internal class DeltaCreatorHashes(initialSize: Int = 256, private val loadFactor: Float = 0.8f) {
     private var size: Int = 0
 
-    private var keyTable = IntArray(initialSize)
-    private var valueTable = LongArray(initialSize)
+    private var keyTable: IntArray
+    private var valueTable: LongArray
 
     private var threshold = (initialSize * loadFactor).toInt()
     private var mask = initialSize - 1
@@ -20,6 +20,8 @@ internal class DeltaCreatorHashes(initialSize: Int = 256, private val loadFactor
         require(initialSize in 1..MAX_TABLE_SIZE && ((initialSize and (initialSize - 1)) == 0)) {
             "'initialCapacity' must be a power of 2 > 0 and <= $MAX_TABLE_SIZE: $initialSize"
         }
+        keyTable = IntArray(initialSize)
+        valueTable = LongArray(initialSize)
     }
 
     fun indexOf(hash: DeltaCreatorChecksum): Long {
