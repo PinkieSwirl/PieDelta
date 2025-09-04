@@ -21,10 +21,10 @@ jobs:
       uses: gradle/actions/setup-gradle@v4
 
     - name: Execute Gradle build
-      run: ./gradlew build
+      run: ./gradlew --no-daemon build
 
     - name: Generate Coverage Report
-      run: ./gradlew jacocoTestReport
+      run: ./gradlew --no-daemon jacocoTestReport
 
     - name: Publish Coverage
       uses: codecov/codecov-action@v5
