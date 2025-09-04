@@ -42,7 +42,7 @@ jobs:
     - if: ${{ matrix.build-mode == 'manual' }}
       name: Manual Build
       run: |
-        ./gradlew build -x
+        ./gradlew build -x test
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
