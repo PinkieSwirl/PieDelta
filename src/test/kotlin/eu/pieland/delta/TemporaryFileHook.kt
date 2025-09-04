@@ -23,7 +23,7 @@ internal class TemporaryFileHook : ResolveParameterHook {
 
     private fun createTempFile(): Path = Files.createTempDirectory("deltaPropertyTest")
 
-    private inner class ClosingFile(val file: Path) : CloseOnReset {
+    private class ClosingFile(val file: Path) : CloseOnReset {
 
         @OptIn(ExperimentalPathApi::class)
         override fun close() {

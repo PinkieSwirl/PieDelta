@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
-//    id("com.autonomousapps.dependency-analysis")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     jacoco
 }
@@ -68,10 +68,10 @@ kotlin {
     jvmToolchain(8)
 }
 
-//dependencyAnalysis {
-//    usage {
-//        analysis {
-//            checkSuperClasses(true) // false by default
-//        }
-//    }
-//}
+dependencyAnalysis {
+    usage {
+        analysis {
+            checkSuperClasses(true) // false by default
+        }
+    }
+}
