@@ -72,7 +72,7 @@ internal class DeltaPatcher(private val zipPatch: ZipInputStream, private val ta
             val path = target.resolve(createdEntry.path)
             check(path.notExists()) { "CREATED file already exists: ${path.relativeTo(target)}" }
             path.parent.createDirectories()
-            val hash = path.computeSha1FromZipEntry2()
+            val hash = path.computeSha1FromZipEntry()
             check(hash == createdEntry.newHash) { "CREATED file-check failed for file: ${path.relativeTo(target)}" }
             zipPatch.closeEntry()
         }
@@ -122,44 +122,6 @@ internal class DeltaPatcher(private val zipPatch: ZipInputStream, private val ta
         val output = DigestOutputStream(outputStream().buffered(), md)
         output.use { zipPatch.copyTo(it) }
         return output.messageDigest.digest().toHexString()
-    }
-
-    @OptIn(ExperimentalStdlibApi::class)
-    private fun Path.computeSha1FromZipEntry3(): String {
-        val digest = MessageDigest.getInstance("SHA-1")
-        outputStream().buffered().use {
-            zipPatch.buffered().useAll { input, offset, length ->
-                digest.update(input, offset, length)
-                it.write(input, offset, length)
-            }
-        }
-        return digest.digest().toHexString()
-    }
-
-    @OptIn(ExperimentalStdlibApi::class)
-    private fun Path.computeSha1FromZipEntry2(): String {
-        val crc32 = CRC32()
-        outputStream().buffered().use {
-            zipPatch.buffered().useAll { input, offset, length ->
-                crc32.update(input, offset, length)
-                it.write(input, offset, length)
-            }
-        }
-        return crc32.value.toInt().toHexString()
-    }
-
-    internal inline fun InputStream.useAll(
-        bufferSize: Int = DEFAULT_BUFFER_SIZE,
-        write: (ByteArray, Int, Int) -> Unit,
-    ) {
-        // use {
-        val buffer = ByteArray(bufferSize)
-        var bytes = read(buffer)
-        while (bytes >= 0) {
-            write(buffer, 0, bytes)
-            bytes = read(buffer)
-        }
-        // }
     }
 
     private fun patch(file: Path, patched: Path) {
