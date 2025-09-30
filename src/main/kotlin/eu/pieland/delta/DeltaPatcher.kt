@@ -11,6 +11,7 @@ import java.nio.file.StandardCopyOption
 import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.util.*
+import java.util.zip.CRC32
 import java.util.zip.ZipInputStream
 import kotlin.io.path.*
 import kotlin.math.min
