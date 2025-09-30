@@ -3,7 +3,6 @@ plugins {
     kotlin("plugin.serialization")
     id("io.gitlab.arturbosch.detekt")
     id("com.autonomousapps.dependency-analysis")
-    id("org.jetbrains.kotlinx.binary-compatibility-validator")
     jacoco
 }
 
@@ -65,7 +64,21 @@ jacoco {
 }
 
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(17)
+    compilerOptions {
+        freeCompilerArgs = listOf(
+            "-Xnullability-annotations=@org.jspecify.annotations:strict",
+            "-Xemit-jvm-type-annotations", // Enable annotations on type variables
+            "-Xcontext-sensitive-resolution",
+            "-Xdata-flow-based-exhaustiveness",
+        )
+        progressiveMode = true
+        javaParameters = false
+    }
+    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+    abiValidation {
+        enabled = true
+    }
 }
 
 dependencyAnalysis {

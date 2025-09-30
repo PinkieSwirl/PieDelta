@@ -105,7 +105,8 @@ internal class DeltaCreator @Suppress("LongParameterList") private constructor(
             val targetSet = target.relativePaths(pathFilter)
 
             val intersect = sourceSet.intersect(targetSet)
-            val (updated, unchanged) = intersect.map { UnchangedOrUpdated(it, source.resolve(it), target.resolve(it)) }
+            val (updated, unchanged) = intersect
+                .map { UnchangedOrUpdated(it, source.resolve(it), target.resolve(it)) }
                 .partitionByType<Updated, Unchanged, UnchangedOrUpdated>()
 
             val created = targetSet.subtract(intersect).map { Created(it, target.resolve(it)) }
