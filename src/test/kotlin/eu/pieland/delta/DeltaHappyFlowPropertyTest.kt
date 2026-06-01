@@ -35,7 +35,15 @@ internal object DeltaHappyFlowPropertyTest {
                 random.repeat(randomCount) + same.repeat(sameCount)
             }.map { it.toByteArray() }
 
-        return Arbitraries.maps(completeFilenames, fileContents).uniqueKeys { it.invariantSeparatorsPathString }
+        val isCaseInsensitive = !System.getProperty("os.name")
+            .lowercase()
+            .contains("linux")
+
+        return Arbitraries.maps(completeFilenames, fileContents)
+            .uniqueKeys {
+                val path = it.invariantSeparatorsPathString
+                if (isCaseInsensitive) path.lowercase() else path
+            }
             .ofSize(0..5).withSizeDistribution(RandomDistribution.biased())
     }
 
