@@ -44,9 +44,9 @@ internal class DeltaPatcher(private val zipPatch: ZipInputStream, private val ta
 
     fun patch(): Path {
         unchanged.check()
+        deleted.delete()
         created.create()
         updated.update()
-        deleted.delete()
         return target
     }
 
